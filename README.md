@@ -11,6 +11,8 @@ Components:
     - [x] listens for feedback responses for prices and corresponding invoices
     - [ ] selects an offer by paying the invoice
     - [x] receives the result, returns it as the result of the MCP tool call
+    - [ ] (testing) check invoice was paid in payment simulator before sending 6109
+    - [ ] get image update working on digital ocean
 
 2. Unstuck Frontend (Job Board and Workspace)
     - [ ] User login via Nostr

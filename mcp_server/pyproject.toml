@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "nostr-sdk>=0.41.0",
     "mcp[cli]>=1.2.0",
+    "requests",
 ]
 
 [project.scripts]

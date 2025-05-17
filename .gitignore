@@ -4,3 +4,5 @@ mcp_server/.venv
 *.cpython
 mcp_server/unstuck_ai/__pycache__
 mcp_server/__pycache__
+mcp_server/uv.lock
+mcp_server/__pycache__/unstuck_with_nostr_working.cpython-312.pyc

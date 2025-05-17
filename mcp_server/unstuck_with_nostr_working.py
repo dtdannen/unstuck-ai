@@ -3,6 +3,7 @@ import asyncio
 import json
 import time
 import logging
+import requests
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
@@ -29,6 +30,9 @@ try:
         HandleNotification,
         RelayMessage,
         Timestamp,
+        NostrWalletConnectUri,
+        Nwc,
+        PayInvoiceRequest,
     )
 
     NOSTR_SDK_AVAILABLE = True
@@ -49,8 +53,14 @@ RELAY_URLS = os.getenv(
     "RELAY_URLS",
     "wss://relay.damus.io,wss://relay.supertech.ai,wss://relay.primal.net,wss://relay.dvmdash.live",
 ).split(",")
+# Lightning node API URL
+LEXE_PROXY_NODE_API_URL = os.getenv("LEXE_PROXY_NODE_API_URL", "http://localhost:5393")
+# NWC key for Lightning payments
+NWC_KEY = os.getenv("NWC_KEY")
+# Maximum price limit for automatic payments (in sats)
+MAX_AUTO_PAYMENT_SATS = 100
 
-# Initialize Nostr client if SDK is available
+# Initialize Nostr client and NWC if SDK is available
 if NOSTR_SDK_AVAILABLE:
     keys = Keys.parse(NOSTR_PRIVATE_KEY) if NOSTR_PRIVATE_KEY else Keys.generate()
     signer = NostrSigner.keys(keys)
@@ -58,6 +68,20 @@ if NOSTR_SDK_AVAILABLE:
     logger.info(
         f"Nostr client initialized with public key: {keys.public_key().to_hex()}"
     )
+
+    # Initialize NWC client if key is available
+    nwc = None
+    if NWC_KEY:
+        try:
+            uri = NostrWalletConnectUri.parse(NWC_KEY)
+            nwc = Nwc(uri)
+            logger.info("NWC client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize NWC client: {str(e)}")
+    else:
+        logger.warning(
+            "NWC_KEY not found in environment variables. Will use Lexe for payments if available."
+        )
 
     # We'll connect to relays when needed in the request_visual_help function
     logger.info(f"Will connect to relays: {RELAY_URLS}")
@@ -92,17 +116,25 @@ class NotificationHandler:
                     if event_kind == 7000:  # Job response event (offer)
                         logger.info(f"Received kind 7000 offer event: {event_id_hex}")
                         await self._process_offer_event(ev)
-                    elif event_kind == 6109:  # Specific job result event we're waiting for
+                    elif (
+                        event_kind == 6109
+                    ):  # Specific job result event we're waiting for
                         logger.info(f"Received kind 6109 result event: {event_id_hex}")
                         await self._process_result_event(ev)
                         logger.info(f"Job completed with result event: {event_id_hex}")
                         self.job_completed.set()
-                    elif event_kind >= 6000 and event_kind < 7000:  # Other job result events
-                        logger.info(f"Received kind {event_kind} result event: {event_id_hex}")
+                    elif (
+                        event_kind >= 6000 and event_kind < 7000
+                    ):  # Other job result events
+                        logger.info(
+                            f"Received kind {event_kind} result event: {event_id_hex}"
+                        )
                         await self._process_result_event(ev)
                         # Only set job_completed for kind 6109
                         if event_kind == 6109:
-                            logger.info(f"Job completed with result event: {event_id_hex}")
+                            logger.info(
+                                f"Job completed with result event: {event_id_hex}"
+                            )
                             self.job_completed.set()
 
                     break
@@ -132,8 +164,10 @@ class NotificationHandler:
                     status = tag_vec[1]
 
         # Log the offer details
-        logger.info(f"Offer details - Price: {price} sats, Status: {status}, Invoice: {'Present' if invoice else 'Not present'}")
-        
+        logger.info(
+            f"Offer details - Price: {price} sats, Status: {status}, Invoice: {'Present' if invoice else 'Not present'}"
+        )
+
         # Store the offer
         offer_data = {
             "event_id": event.id().to_hex(),
@@ -144,15 +178,37 @@ class NotificationHandler:
             "content": event.content(),
             "received_at": time.time(),
         }
-        
+
         self.offers.append(offer_data)
         logger.info(f"Added offer to list. Total offers: {len(self.offers)}")
+
+        # Pay the invoice if it exists and price is within limits
+        if invoice and price is not None:
+            try:
+                logger.info(
+                    f"Attempting to pay invoice for offer {event.id().to_hex()}"
+                )
+                payment_result = await pay_lightning_invoice(
+                    invoice=invoice,
+                    price_sats=price,
+                    note=f"Payment for Nostr event {self.event_id}",
+                )
+
+                # Update the offer with payment information
+                offer_data["payment_result"] = payment_result
+                logger.info(f"Payment successful for offer {event.id().to_hex()}")
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to pay invoice for offer {event.id().to_hex()}: {str(e)}"
+                )
+                offer_data["payment_error"] = str(e)
 
     async def _process_result_event(self, event):
         """Process a job result event (kind 6xxx)"""
         event_id = event.id().to_hex()
         event_kind = event.kind().as_u16()
-        
+
         # Extract status from tags
         status = None
         for tag in event.tags().to_vec():
@@ -160,18 +216,22 @@ class NotificationHandler:
             if len(tag_vec) >= 2 and tag_vec[0] == "status":
                 status = tag_vec[1]
                 break
-        
+
         # Log the result details
-        logger.info(f"Result event received - ID: {event_id}, Kind: {event_kind}, Status: {status}")
-        
+        logger.info(
+            f"Result event received - ID: {event_id}, Kind: {event_kind}, Status: {status}"
+        )
+
         try:
             # Try to parse content as JSON
             content_json = json.loads(event.content())
-            logger.info(f"Result content (JSON): {json.dumps(content_json, indent=2)[:200]}...")
+            logger.info(
+                f"Result content (JSON): {json.dumps(content_json, indent=2)[:200]}..."
+            )
         except json.JSONDecodeError:
             # If not JSON, log as text
             logger.info(f"Result content (text): {event.content()[:200]}...")
-        
+
         # Store the result
         self.result = {
             "event_id": event_id,
@@ -182,8 +242,158 @@ class NotificationHandler:
             "tags": [tag.as_vec() for tag in event.tags().to_vec()],
             "received_at": time.time(),
         }
-        
+
         logger.info(f"Stored result for event: {event_id}")
+
+
+# Function to pay a Lightning invoice using NWC
+async def pay_lightning_invoice_nwc(
+    invoice: str, price_sats: Optional[int] = None, note: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Pay a BOLT11 Lightning invoice using Nostr Wallet Connect (NWC).
+
+    Args:
+        invoice: The encoded invoice string to pay
+        price_sats: The price in satoshis (for validation)
+        note: Optional personal note to attach to the payment
+
+    Returns:
+        Dictionary containing the payment result
+    """
+    if not NOSTR_SDK_AVAILABLE or not nwc:
+        logger.error("NWC client not available")
+        raise McpError(ErrorData(INTERNAL_ERROR, "NWC client not available"))
+
+    try:
+        # Check if price is within limits
+        if price_sats and price_sats > MAX_AUTO_PAYMENT_SATS:
+            logger.warning(
+                f"Invoice price ({price_sats} sats) exceeds maximum auto-payment limit ({MAX_AUTO_PAYMENT_SATS} sats)"
+            )
+            raise McpError(
+                ErrorData(
+                    INVALID_PARAMS,
+                    f"Invoice price ({price_sats} sats) exceeds maximum auto-payment limit",
+                )
+            )
+
+        logger.info(
+            f"Preparing to pay Lightning invoice via NWC (price: {price_sats if price_sats else 'unknown'} sats)"
+        )
+
+        # Create payment request parameters
+        # Note: For PayInvoiceRequest, we don't need to specify amount as it's included in the invoice
+        # But if we did, it might need to be in millisatoshis (msats) instead of satoshis
+        params = PayInvoiceRequest(invoice=invoice, id=None, amount=None)
+
+        # Pay the invoice using NWC
+        logger.info("Sending payment request via NWC")
+        try:
+            payment_result = await nwc.pay_invoice(params)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"NWC payment error: {error_msg}")
+
+            # Add more detailed error information
+            if "Only sat payments are supported" in error_msg:
+                logger.error(
+                    "This error suggests the wallet only supports payments in satoshis."
+                )
+                logger.error(
+                    "Check if your NWC wallet implementation has specific requirements for payments."
+                )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error paying Lightning invoice via NWC: {str(e)}")
+        raise McpError(
+            ErrorData(
+                INTERNAL_ERROR, f"Error paying Lightning invoice via NWC: {str(e)}"
+            )
+        )
+
+
+# Function to pay a Lightning invoice
+async def pay_lightning_invoice(
+    invoice: str, price_sats: Optional[int] = None, note: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Pay a BOLT11 Lightning invoice using either NWC or the Lexe node API.
+    Tries NWC first, falls back to Lexe if NWC fails.
+
+    Args:
+        invoice: The encoded invoice string to pay
+        price_sats: The price in satoshis (for validation)
+        note: Optional personal note to attach to the payment
+
+    Returns:
+        Dictionary containing the payment index and creation timestamp
+    """
+    # Check if price is within limits
+    if price_sats and price_sats > MAX_AUTO_PAYMENT_SATS:
+        logger.warning(
+            f"Invoice price ({price_sats} sats) exceeds maximum auto-payment limit ({MAX_AUTO_PAYMENT_SATS} sats)"
+        )
+        raise McpError(
+            ErrorData(
+                INVALID_PARAMS,
+                f"Invoice price ({price_sats} sats) exceeds maximum auto-payment limit",
+            )
+        )
+
+    logger.info(
+        f"Preparing to pay Lightning invoice (price: {price_sats if price_sats else 'unknown'} sats)"
+    )
+
+    # Try to pay with NWC first if available
+    if NOSTR_SDK_AVAILABLE and nwc:
+        try:
+            logger.info("Attempting to pay with NWC")
+            return await pay_lightning_invoice_nwc(invoice, price_sats, note)
+        except Exception as e:
+            logger.warning(f"NWC payment failed, falling back to Lexe: {str(e)}")
+            # Fall back to Lexe if NWC fails
+
+    # Pay with Lexe API
+    try:
+        logger.info("Attempting to pay with Lexe API")
+
+        # Prepare the request payload
+        payload = {"invoice": invoice}
+
+        # Add optional note if provided
+        if note:
+            payload["note"] = note
+
+        logger.info(
+            f"Sending payment request to {LEXE_PROXY_NODE_API_URL}/v1/node/pay_invoice"
+        )
+
+        # Make the API request
+        response = requests.post(
+            f"{LEXE_PROXY_NODE_API_URL}/v1/node/pay_invoice",
+            headers={"content-type": "application/json"},
+            json=payload,
+        )
+
+        # Check if the request was successful
+        response.raise_for_status()
+
+        # Parse and return the response
+        result = response.json()
+        logger.info(
+            f"Successfully paid invoice via Lexe. Payment index: {result.get('index')}"
+        )
+        logger.info(f"Payment created at: {result.get('created_at')}")
+        return result
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error paying Lightning invoice via Lexe: {str(e)}")
+        raise McpError(
+            ErrorData(INTERNAL_ERROR, f"Error paying Lightning invoice: {str(e)}")
+        )
 
 
 # Initialize Nostr client
@@ -229,16 +439,16 @@ async def request_and_wait_for_result(
 
     # Set up filter for responses to our event
     one_hour_ago = Timestamp.from_secs(Timestamp.now().as_secs() - 3600)
-    
+
     # Create a filter for events that reference our event ID
     response_filter = (
         Filter()
         .event(EventId.parse(job_id))  # Filter for events referencing our event ID
         .since(one_hour_ago)
     )
-    
+
     logger.info(f"Setting up filter for events referencing job ID: {job_id}")
-    
+
     logger.info(f"Setting up filter for events referencing job ID: {job_id}")
     await client.subscribe(response_filter)
 
