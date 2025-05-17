@@ -90,13 +90,20 @@ class NotificationHandler:
 
                     # Process the event based on its kind
                     if event_kind == 7000:  # Job response event (offer)
+                        logger.info(f"Received kind 7000 offer event: {event_id_hex}")
                         await self._process_offer_event(ev)
-                    elif event_kind >= 6000 and event_kind < 7000:  # Job result event
+                    elif event_kind == 6109:  # Specific job result event we're waiting for
+                        logger.info(f"Received kind 6109 result event: {event_id_hex}")
                         await self._process_result_event(ev)
-                        logger.info(
-                            f"Received response event (Kind: {event_kind}), job completed"
-                        )
+                        logger.info(f"Job completed with result event: {event_id_hex}")
                         self.job_completed.set()
+                    elif event_kind >= 6000 and event_kind < 7000:  # Other job result events
+                        logger.info(f"Received kind {event_kind} result event: {event_id_hex}")
+                        await self._process_result_event(ev)
+                        # Only set job_completed for kind 6109
+                        if event_kind == 6109:
+                            logger.info(f"Job completed with result event: {event_id_hex}")
+                            self.job_completed.set()
 
                     break
 
@@ -109,6 +116,7 @@ class NotificationHandler:
         # Extract price and invoice from tags
         price = None
         invoice = None
+        status = None
 
         for tag in event.tags().to_vec():
             tag_vec = tag.as_vec()
@@ -120,29 +128,62 @@ class NotificationHandler:
                         pass
                 elif tag_vec[0] == "bolt11":
                     invoice = tag_vec[1]
+                elif tag_vec[0] == "status":
+                    status = tag_vec[1]
 
-        if price and invoice:
-            self.offers.append(
-                {
-                    "event_id": event.id().to_hex(),
-                    "price_sats": price,
-                    "invoice": invoice,
-                    "pubkey": event.author().to_hex(),
-                    "content": event.content(),
-                    "received_at": time.time(),
-                }
-            )
+        # Log the offer details
+        logger.info(f"Offer details - Price: {price} sats, Status: {status}, Invoice: {'Present' if invoice else 'Not present'}")
+        
+        # Store the offer
+        offer_data = {
+            "event_id": event.id().to_hex(),
+            "price_sats": price,
+            "invoice": invoice,
+            "status": status,
+            "pubkey": event.author().to_hex(),
+            "content": event.content(),
+            "received_at": time.time(),
+        }
+        
+        self.offers.append(offer_data)
+        logger.info(f"Added offer to list. Total offers: {len(self.offers)}")
 
     async def _process_result_event(self, event):
         """Process a job result event (kind 6xxx)"""
+        event_id = event.id().to_hex()
+        event_kind = event.kind().as_u16()
+        
+        # Extract status from tags
+        status = None
+        for tag in event.tags().to_vec():
+            tag_vec = tag.as_vec()
+            if len(tag_vec) >= 2 and tag_vec[0] == "status":
+                status = tag_vec[1]
+                break
+        
+        # Log the result details
+        logger.info(f"Result event received - ID: {event_id}, Kind: {event_kind}, Status: {status}")
+        
+        try:
+            # Try to parse content as JSON
+            content_json = json.loads(event.content())
+            logger.info(f"Result content (JSON): {json.dumps(content_json, indent=2)[:200]}...")
+        except json.JSONDecodeError:
+            # If not JSON, log as text
+            logger.info(f"Result content (text): {event.content()[:200]}...")
+        
+        # Store the result
         self.result = {
-            "event_id": event.id().to_hex(),
-            "kind": event.kind().as_u16(),
+            "event_id": event_id,
+            "kind": event_kind,
             "pubkey": event.author().to_hex(),
             "content": event.content(),
+            "status": status,
             "tags": [tag.as_vec() for tag in event.tags().to_vec()],
             "received_at": time.time(),
         }
+        
+        logger.info(f"Stored result for event: {event_id}")
 
 
 # Initialize Nostr client
@@ -188,7 +229,17 @@ async def request_and_wait_for_result(
 
     # Set up filter for responses to our event
     one_hour_ago = Timestamp.from_secs(Timestamp.now().as_secs() - 3600)
-    response_filter = Filter().event(EventId.parse(job_id)).since(one_hour_ago)
+    
+    # Create a filter for events that reference our event ID
+    response_filter = (
+        Filter()
+        .event(EventId.parse(job_id))  # Filter for events referencing our event ID
+        .since(one_hour_ago)
+    )
+    
+    logger.info(f"Setting up filter for events referencing job ID: {job_id}")
+    
+    logger.info(f"Setting up filter for events referencing job ID: {job_id}")
     await client.subscribe(response_filter)
 
     # Start handling notifications
@@ -274,55 +325,70 @@ async def request_visual_help(
     description: str = "",
     screenshot_url: str = "",
     max_price_sats: Optional[int] = None,
+    wait_for_result: bool = True,
+    timeout: int = 300,
 ) -> Dict[str, Any]:
     """
     Request visual computer interaction help from humans through Nostr.
 
     This tool sends a request to Nostr relays asking for help with a visual computer interaction task.
-    It broadcasts the request to all configured relays and returns the event ID and broadcast results.
+    It broadcasts the request to all configured relays and waits for responses.
 
     Args:
         description: A detailed description of what help is needed
         screenshot_url: URL to a screenshot or image showing the visual context
         max_price_sats: Maximum price willing to pay in satoshis (optional)
+        wait_for_result: Whether to wait for the result (default: True)
+        timeout: Maximum time to wait for result in seconds (default: 300)
 
     Returns:
-        A dictionary containing the job ID, broadcast results, and other metadata
+        A dictionary containing the job ID, offers received, selected offer, and result
     """
     try:
         logger.info(f"Request visual help called with description: {description}")
         logger.info(f"Screenshot URL: {screenshot_url}")
         logger.info(f"Max price: {max_price_sats}")
+        logger.info(f"Wait for result: {wait_for_result}, Timeout: {timeout}s")
 
-        # Create and broadcast a Nostr event
-        broadcast_result = await create_and_broadcast_nostr_event(
-            description, screenshot_url, max_price_sats
-        )
+        if wait_for_result:
+            # Use the request_and_wait_for_result function to wait for responses
+            logger.info("Waiting for result...")
+            result = await request_and_wait_for_result(
+                description, screenshot_url, max_price_sats, timeout
+            )
+            logger.info(f"Received result after waiting: {result}")
+            return result
+        else:
+            # Just broadcast the event without waiting
+            logger.info("Broadcasting event without waiting for result")
+            broadcast_result = await create_and_broadcast_nostr_event(
+                description, screenshot_url, max_price_sats
+            )
 
-        event_id = broadcast_result["event_id"]
-        logger.info(f"Broadcast Nostr event with ID: {event_id}")
-        logger.info(f"Successfully sent to: {broadcast_result['success']}")
+            event_id = broadcast_result["event_id"]
+            logger.info(f"Broadcast Nostr event with ID: {event_id}")
+            logger.info(f"Successfully sent to: {broadcast_result['success']}")
 
-        if broadcast_result["failed"]:
-            logger.warning(f"Failed to send to: {broadcast_result['failed']}")
+            if broadcast_result["failed"]:
+                logger.warning(f"Failed to send to: {broadcast_result['failed']}")
 
-        # Return a response with the event ID and broadcast results
-        result = {
-            "job_id": event_id,
-            "offers": [],
-            "selected_offer": None,
-            "result": {
-                "content": f"Broadcast request for: {description}",
-                "screenshot_url": screenshot_url,
-                "max_price_sats": max_price_sats,
-                "event_id": event_id,
-                "sent_to": broadcast_result["success"],
-                "failed_relays": broadcast_result["failed"],
-            },
-        }
+            # Return a response with the event ID and broadcast results
+            result = {
+                "job_id": event_id,
+                "offers": [],
+                "selected_offer": None,
+                "result": {
+                    "content": f"Broadcast request for: {description}",
+                    "screenshot_url": screenshot_url,
+                    "max_price_sats": max_price_sats,
+                    "event_id": event_id,
+                    "sent_to": broadcast_result["success"],
+                    "failed_relays": broadcast_result["failed"],
+                },
+            }
 
-        logger.info(f"Returning result: {result}")
-        return result
+            logger.info(f"Returning immediate result: {result}")
+            return result
     except Exception as e:
         logger.error(f"Error requesting visual help: {str(e)}", exc_info=True)
         raise McpError(

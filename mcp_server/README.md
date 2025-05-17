@@ -34,7 +34,37 @@ pip install -e .
 unstuck-ai
 ```
 
+or via absolute paths
+
+```bash
+/Users/dustin/Projects/unstuck-ai/mcp_server/venv/bin/mcp dev /Users/dustin/Projects/unstuck-ai/mcp_server/unstuck_with_nostr_working.py
+```
+
 The server will be available as an MCP server that can be used by Goose or other MCP-compatible clients.
+
+And if you want to run the mock demo to fake the frontend, open up a second terminal and run to watch all events:
+
+```bash
+python event_monitor.py
+```
+
+And then open a third terminal and run the payment flow simulator (which really simualtes the frontend):
+
+```bash
+python payment_flow_simulator.py
+```
+
+And you should see results like: 
+
+```
+REQUEST RECEIVED: 7b4cbf14... - test
+Sending payment required response for request 7b4cbf14...
+PAYMENT REQUIRED sent: 81eeaa2a... - Amount: 50 sats
+Waiting for payment simulation (3 seconds)...
+Payment simulation complete. Sending job result for request 7b4cbf14...
+JOB RESULT sent: 22acfedb... - Kind: 6109
+Complete flow simulated for request 7b4cbf14
+```
 
 ## MCP Tools
 
