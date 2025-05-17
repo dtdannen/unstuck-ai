@@ -12,7 +12,7 @@ Components:
     - [x] selects an offer by paying the invoice
     - [x] receives the result, returns it as the result of the MCP tool call
     - [ ] (testing) check invoice was paid in payment simulator before sending 6109
-    - [x] get image update working on digital ocean
+    - [x] get image upload working on digital ocean
     - [ ] get goose or claude to take a screenshot and call the mcp tool correctly
 
 2. Unstuck Frontend (Job Board and Workspace)
@@ -28,3 +28,21 @@ Components:
     - [ ] Send the final job result event when the user is done
 
  
+ ## How to use
+
+ ```bash
+ cd mcp_server/
+ fastmcp run unstuck_with_nostr_working.py:mcp --transport sse
+ ```
+
+ then in another terminal run goose
+
+ ```bash
+ goose session --with-remote-extension http://127.0.0.1:8000/sse
+ ```
+
+and then you can try using it with a propmt to goose like:
+
+```bash
+( O)> can you take a screenshot of my whole screen and then send a request using unstuck helper tool to ask a human what icon I can click to open firefox?
+```

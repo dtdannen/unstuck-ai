@@ -20,6 +20,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("unstuck-ai")
 
+# Enable debug mode for detailed logging
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+
 try:
     from nostr_sdk import (
         Keys,
@@ -463,72 +466,160 @@ async def request_and_wait_for_result(
     """
     Send a request for visual computer interaction help and wait for the result.
     """
-    if not NOSTR_SDK_AVAILABLE:
+    try:
+        if not NOSTR_SDK_AVAILABLE:
+            logger.warning("Nostr SDK not available, returning mock response")
+            return {
+                "job_id": "mock-job-id",
+                "offers": [],
+                "selected_offer": None,
+                "result": {
+                    "content": f"Mock response for: {description} (Nostr SDK not available)",
+                    "screenshot_url": screenshot_url,
+                    "max_price_sats": max_price_sats,
+                },
+            }
+
+        # Create and broadcast the event
+        try:
+            logger.info("Creating and broadcasting Nostr event")
+            broadcast_result = await create_and_broadcast_nostr_event(
+                description, screenshot_url, max_price_sats
+            )
+            job_id = broadcast_result["event_id"]
+            logger.info(f"Sent job request with ID: {job_id}")
+        except Exception as e:
+            logger.error(f"Failed to create and broadcast Nostr event: {str(e)}", exc_info=True)
+            return {
+                "error": str(e),
+                "status": "failed",
+                "job_id": "error-" + str(int(time.time())),
+                "offers": [],
+                "selected_offer": None,
+                "result": {
+                    "content": f"Error creating Nostr event: {str(e)}",
+                    "error": str(e)
+                }
+            }
+
+        # Create notification handler for this job
+        handler = NotificationHandler(job_id)
+
+        # Set up filter for responses to our event
+        one_hour_ago = Timestamp.from_secs(Timestamp.now().as_secs() - 3600)
+
+        # Create a filter for events that reference our event ID
+        response_filter = (
+            Filter()
+            .event(EventId.parse(job_id))  # Filter for events referencing our event ID
+            .since(one_hour_ago)
+        )
+
+        logger.info(f"Setting up filter for events referencing job ID: {job_id}")
+
+        try:
+            await client.subscribe(response_filter)
+            logger.info(f"Successfully subscribed to filter for job ID: {job_id}")
+        except Exception as e:
+            logger.error(f"Failed to subscribe to filter: {str(e)}", exc_info=True)
+            return {
+                "error": str(e),
+                "status": "failed",
+                "job_id": job_id,
+                "offers": [],
+                "selected_offer": None,
+                "result": {
+                    "content": f"Error subscribing to filter: {str(e)}",
+                    "error": str(e)
+                },
+                "broadcast_info": {
+                    "sent_to": broadcast_result["success"],
+                    "failed_relays": broadcast_result["failed"],
+                },
+            }
+
+        # Start handling notifications
+        notification_task = asyncio.create_task(client.handle_notifications(handler))
+
+        try:
+            # Wait for job completion or timeout
+            logger.info(f"Waiting for job completion (timeout: {timeout}s)")
+            await asyncio.wait_for(handler.job_completed.wait(), timeout=timeout)
+            logger.info(f"Job {job_id} completed")
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout waiting for job {job_id} to complete")
+            # Return a timeout result
+            return {
+                "job_id": job_id,
+                "offers": handler.offers,
+                "selected_offer": None,
+                "result": {
+                    "content": f"Timeout waiting for response after {timeout} seconds",
+                    "status": "timeout",
+                    "error": "Request timed out"
+                },
+                "broadcast_info": {
+                    "sent_to": broadcast_result["success"],
+                    "failed_relays": broadcast_result["failed"],
+                },
+                "status": "timeout"
+            }
+        except Exception as e:
+            logger.error(f"Error waiting for job completion: {str(e)}", exc_info=True)
+            # Return an error result
+            return {
+                "error": str(e),
+                "status": "failed",
+                "job_id": job_id,
+                "offers": handler.offers,
+                "selected_offer": None,
+                "result": {
+                    "content": f"Error waiting for job completion: {str(e)}",
+                    "error": str(e)
+                },
+                "broadcast_info": {
+                    "sent_to": broadcast_result["success"],
+                    "failed_relays": broadcast_result["failed"],
+                },
+            }
+        finally:
+            # Cancel notification handling
+            logger.info("Canceling notification handling task")
+            notification_task.cancel()
+            try:
+                await notification_task
+            except asyncio.CancelledError:
+                pass
+
+        # Return the job result
+        logger.info(f"Returning job result for job ID: {job_id}")
         return {
-            "job_id": "mock-job-id",
+            "job_id": job_id,
+            "offers": handler.offers,
+            "selected_offer": None,
+            "result": handler.result or {
+                "content": "No result received",
+                "status": "no_result"
+            },
+            "broadcast_info": {
+                "sent_to": broadcast_result["success"],
+                "failed_relays": broadcast_result["failed"],
+            },
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in request_and_wait_for_result: {str(e)}", exc_info=True)
+        # Always return a result, even on unexpected errors
+        return {
+            "error": str(e),
+            "status": "failed",
+            "job_id": "error-" + str(int(time.time())),
             "offers": [],
             "selected_offer": None,
             "result": {
-                "content": f"Mock response for: {description} (Nostr SDK not available)",
-                "screenshot_url": screenshot_url,
-                "max_price_sats": max_price_sats,
-            },
+                "content": f"Unexpected error in request_and_wait_for_result: {str(e)}",
+                "error": str(e)
+            }
         }
-
-    # Create and broadcast the event
-    broadcast_result = await create_and_broadcast_nostr_event(
-        description, screenshot_url, max_price_sats
-    )
-    job_id = broadcast_result["event_id"]
-
-    logger.info(f"Sent job request with ID: {job_id}")
-
-    # Create notification handler for this job
-    handler = NotificationHandler(job_id)
-
-    # Set up filter for responses to our event
-    one_hour_ago = Timestamp.from_secs(Timestamp.now().as_secs() - 3600)
-
-    # Create a filter for events that reference our event ID
-    response_filter = (
-        Filter()
-        .event(EventId.parse(job_id))  # Filter for events referencing our event ID
-        .since(one_hour_ago)
-    )
-
-    logger.info(f"Setting up filter for events referencing job ID: {job_id}")
-
-    logger.info(f"Setting up filter for events referencing job ID: {job_id}")
-    await client.subscribe(response_filter)
-
-    # Start handling notifications
-    notification_task = asyncio.create_task(client.handle_notifications(handler))
-
-    try:
-        # Wait for job completion or timeout
-        await asyncio.wait_for(handler.job_completed.wait(), timeout=timeout)
-        logger.info(f"Job {job_id} completed")
-    except asyncio.TimeoutError:
-        logger.warning(f"Timeout waiting for job {job_id} to complete")
-    finally:
-        # Cancel notification handling
-        notification_task.cancel()
-        try:
-            await notification_task
-        except asyncio.CancelledError:
-            pass
-
-    # Return the job result
-    return {
-        "job_id": job_id,
-        "offers": handler.offers,
-        "selected_offer": None,
-        "result": handler.result,
-        "broadcast_info": {
-            "sent_to": broadcast_result["success"],
-            "failed_relays": broadcast_result["failed"],
-        },
-    }
 
 
 # Function to create and broadcast a Nostr event
@@ -546,37 +637,69 @@ async def create_and_broadcast_nostr_event(
     Returns:
         Dictionary containing event ID and broadcast results
     """
-    if not NOSTR_SDK_AVAILABLE:
-        logger.warning("Nostr SDK not available, cannot create event")
-        return {"event_id": "mock-event-id", "success": [], "failed": []}
+    try:
+        if not NOSTR_SDK_AVAILABLE:
+            logger.warning("Nostr SDK not available, cannot create event")
+            return {"event_id": "mock-event-id", "success": [], "failed": []}
 
-    # Create kind 5109 event for help request
-    tags = [
-        Tag.parse(["description", description]),
-        Tag.parse(["image", screenshot_url]),
-    ]
+        # Create kind 5109 event for help request
+        logger.info("Creating Nostr event tags")
+        try:
+            tags = [
+                Tag.parse(["description", description]),
+                Tag.parse(["image", screenshot_url]),
+            ]
 
-    if max_price_sats:
-        tags.append(Tag.parse(["max_price", str(max_price_sats)]))
+            if max_price_sats:
+                tags.append(Tag.parse(["max_price", str(max_price_sats)]))
+        except Exception as e:
+            logger.error(f"Error creating tags: {str(e)}", exc_info=True)
+            raise
 
-    # Build the event
-    builder = EventBuilder(Kind(5109), description).tags(tags)
+        # Build the event
+        logger.info("Building Nostr event")
+        try:
+            builder = EventBuilder(Kind(5109), description).tags(tags)
+        except Exception as e:
+            logger.error(f"Error building event: {str(e)}", exc_info=True)
+            raise
 
-    # Add relays and connect
-    for relay_url in RELAY_URLS:
-        await client.add_relay(relay_url.strip())
-    await client.connect()
-    logger.info(f"Connected to relays: {RELAY_URLS}")
+        # Add relays and connect
+        logger.info("Connecting to relays")
+        try:
+            for relay_url in RELAY_URLS:
+                await client.add_relay(relay_url.strip())
+            await client.connect()
+            logger.info(f"Connected to relays: {RELAY_URLS}")
+        except Exception as e:
+            logger.error(f"Error connecting to relays: {str(e)}", exc_info=True)
+            raise
 
-    # Send the event to relays
-    output = await client.send_event_builder(builder)
-    event_id = output.id.to_hex()
+        # Send the event to relays
+        logger.info("Sending event to relays")
+        try:
+            output = await client.send_event_builder(builder)
+            event_id = output.id.to_hex()
 
-    logger.info(f"Event ID: {event_id}")
-    logger.info(f"Sent to: {output.success}")
-    logger.info(f"Not sent to: {output.failed}")
+            logger.info(f"Event ID: {event_id}")
+            logger.info(f"Sent to: {output.success}")
+            logger.info(f"Not sent to: {output.failed}")
 
-    return {"event_id": event_id, "success": output.success, "failed": output.failed}
+            return {"event_id": event_id, "success": output.success, "failed": output.failed}
+        except Exception as e:
+            logger.error(f"Error sending event to relays: {str(e)}", exc_info=True)
+            raise
+
+    except Exception as e:
+        logger.error(f"Error in create_and_broadcast_nostr_event: {str(e)}", exc_info=True)
+        # Generate a mock event ID for error cases
+        mock_event_id = f"error-{int(time.time())}"
+        return {
+            "event_id": mock_event_id,
+            "success": [],
+            "failed": RELAY_URLS,
+            "error": str(e)
+        }
 
 
 @mcp.tool()
@@ -604,17 +727,76 @@ async def request_visual_help(
         A dictionary containing the job ID, offers received, selected offer, and result
     """
     try:
-        logger.info(f"Request visual help called with description: {description}")
-        logger.info(f"Screenshot URL or path: {screenshot_url}")
+        # Enhanced logging for tool calls from Goose
+        logger.info("==== TOOL CALL FROM GOOSE ====")
+        logger.info(f"Description: {description}")
+        logger.info(f"Screenshot URL: {screenshot_url}")
         logger.info(f"Max price: {max_price_sats}")
-        logger.info(f"Wait for result: {wait_for_result}, Timeout: {timeout}s")
+        logger.info(f"Wait for result: {wait_for_result}")
+        logger.info(f"Timeout: {timeout}s")
+        logger.info("================================")
+        
+        # Log raw arguments in debug mode
+        if DEBUG_MODE:
+            logger.info("==== RAW ARGUMENTS ====")
+            import inspect
+            frame = inspect.currentframe()
+            args, _, _, values = inspect.getargvalues(frame)
+            for arg in args:
+                if arg != 'self':
+                    logger.info(f"{arg}: {values[arg]}")
+            logger.info("=======================")
 
         # Check if screenshot_url is a local file path and upload if needed
+        public_url = ""
         if screenshot_url:
-            public_url = ensure_public_url(screenshot_url)
-            logger.info(f"Using screenshot URL: {public_url}")
+            logger.info(f"Processing screenshot URL: {screenshot_url}")
+            try:
+                public_url = ensure_public_url(screenshot_url)
+                if public_url == screenshot_url and not public_url.startswith(("http://", "https://")):
+                    # If the URL didn't change and it's not a web URL, it means upload failed
+                    logger.error(f"Failed to upload local screenshot: {screenshot_url}")
+                    return {
+                        "error": "Screenshot upload failed",
+                        "status": "failed",
+                        "job_id": "error-" + str(int(time.time())),
+                        "offers": [],
+                        "selected_offer": None,
+                        "result": {
+                            "content": f"Error: Failed to upload local screenshot: {screenshot_url}",
+                            "error": "Screenshot upload failed"
+                        }
+                    }
+                logger.info(f"Successfully processed to: {public_url}")
+            except Exception as e:
+                logger.error(f"Failed to process screenshot URL: {str(e)}", exc_info=True)
+                return {
+                    "error": str(e),
+                    "status": "failed",
+                    "job_id": "error-" + str(int(time.time())),
+                    "offers": [],
+                    "selected_offer": None,
+                    "result": {
+                        "content": f"Error processing screenshot URL: {str(e)}",
+                        "error": str(e)
+                    }
+                }
         else:
-            public_url = ""
+            logger.warning("No screenshot URL provided")
+            # If screenshot is required, return an error
+            if not description:
+                logger.error("Neither screenshot URL nor description provided")
+                return {
+                    "error": "Missing required parameters",
+                    "status": "failed",
+                    "job_id": "error-" + str(int(time.time())),
+                    "offers": [],
+                    "selected_offer": None,
+                    "result": {
+                        "content": "Error: Neither screenshot URL nor description provided",
+                        "error": "Missing required parameters"
+                    }
+                }
 
         if wait_for_result:
             # Use the request_and_wait_for_result function to wait for responses
@@ -660,9 +842,18 @@ async def request_visual_help(
             return result
     except Exception as e:
         logger.error(f"Error requesting visual help: {str(e)}", exc_info=True)
-        raise McpError(
-            ErrorData(INTERNAL_ERROR, f"Error requesting visual help: {str(e)}")
-        )
+        # Always return a result, even on error
+        return {
+            "error": str(e),
+            "status": "failed",
+            "job_id": "error-" + str(int(time.time())),
+            "offers": [],
+            "selected_offer": None,
+            "result": {
+                "content": f"Error in request_visual_help: {str(e)}",
+                "error": str(e)
+            }
+        }
 
 
 if __name__ == "__main__":
