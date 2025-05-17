@@ -17,13 +17,13 @@ Components:
     - [ ] get goose to execute the action that the human gives (from the result of the mcp tool call)
 
 2. Unstuck Frontend (Job Board and Workspace)
-    - [ ] User login via Nostr
+    - [x] User login via Nostr
     - [x] Pull job offers from Nostr relays
     - [ ] Allow user to set a default job amount in sats
     - [x] Display job offers
     - [ ] Allow user to select a job
-        - [ ] generate a lightning invoice for the amount
-        - [ ] broadcast a kind 7000 event with the invoice and price
+        - [x] generate a lightning invoice for the amount
+        - [x] broadcast a kind 7000 event with the invoice and price
         - [ ] show a notification when the invoice was paid
     - [ ] Show a workspace like page for the user to do the work
     - [ ] Send the final job result event when the user is done

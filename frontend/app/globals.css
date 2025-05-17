@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 12%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 12%;
+
+  --primary: 35 90% 55%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 12%;
+
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 46%;
+
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 12%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 89%;
+  --input: 0 0% 89%;
+  --ring: 0 0% 12%;
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 0 0% 12%;
+  --foreground: 0 0% 100%;
+
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 100%;
+
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 100%;
+
+  --primary: 35 90% 55%;
+  --primary-foreground: 0 0% 12%;
+
+  --secondary: 0 0% 17%;
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 0 0% 17%;
+  --muted-foreground: 0 0% 70%;
+
+  --accent: 0 0% 17%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 17%;
+  --input: 0 0% 17%;
+  --ring: 0 0% 83%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.container {
+  @apply mx-auto px-4 max-w-7xl;
+}
+
+.prose {
+  @apply max-w-none;
+}
+
+.prose h2 {
+  @apply text-2xl font-bold mt-8 mb-4 text-[#1e1e1e];
+}
+
+.prose p {
+  @apply mb-4 text-[#757575];
+}
+
+/* Hero section with background image */
+section.hero-section {
+  position: relative;
+  background-color: #d9d9d9;
+  overflow: hidden;
+}
+
+section.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("/goosestuck2.jpg");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.9;
+}
+
+section.hero-section .content {
+  position: relative;
+  z-index: 10;
+}

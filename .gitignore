@@ -8,3 +8,5 @@ mcp_server/uv.lock
 mcp_server/__pycache__/unstuck_with_nostr_working.cpython-312.pyc
 mcp_server/uv.lock
 mcp_server/__pycache__/unstuck_with_nostr_working.cpython-312.pyc
+frontend/node_modules
+frontend/.next
