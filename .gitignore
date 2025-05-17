@@ -1,3 +1,6 @@
 .env
 venv
 mcp_server/.venv
+*.cpython
+mcp_server/unstuck_ai/__pycache__
+mcp_server/__pycache__
