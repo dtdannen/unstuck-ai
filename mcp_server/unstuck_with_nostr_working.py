@@ -4,11 +4,15 @@ import json
 import time
 import logging
 import requests
+import random
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData, INTERNAL_ERROR, INVALID_PARAMS
+
+# Import Digital Ocean Spaces upload functionality
+from test_do_spaces_upload import upload_to_space
 
 # Configure logging
 logging.basicConfig(
@@ -59,6 +63,9 @@ LEXE_PROXY_NODE_API_URL = os.getenv("LEXE_PROXY_NODE_API_URL", "http://localhost
 NWC_KEY = os.getenv("NWC_KEY")
 # Maximum price limit for automatic payments (in sats)
 MAX_AUTO_PAYMENT_SATS = 100
+# Digital Ocean Spaces configuration
+DIGITAL_OCEAN_SPACE_NAME = os.getenv("DIGITAL_OCEAN_SPACE_NAME", "unstuck-goose")
+DIGITAL_OCEAN_REGION = os.getenv("DIGITAL_OCEAN_REGION", "nyc3")
 
 # Initialize Nostr client and NWC if SDK is available
 if NOSTR_SDK_AVAILABLE:
@@ -396,6 +403,48 @@ async def pay_lightning_invoice(
         )
 
 
+# Function to check if a string is a local file path and upload it if needed
+def ensure_public_url(file_path_or_url: str) -> str:
+    """
+    Check if the provided string is a local file path.
+    If it is, upload it to Digital Ocean Spaces and return the public URL.
+    Otherwise, return the original URL.
+
+    Args:
+        file_path_or_url: A string that could be either a local file path or a URL
+
+    Returns:
+        A public URL (either the original URL or a new one if the file was uploaded)
+    """
+    # Check if it's a local file path
+    if os.path.exists(file_path_or_url) and os.path.isfile(file_path_or_url):
+        logger.info(f"Detected local file path: {file_path_or_url}")
+
+        # Generate a unique remote path
+        remote_path = (
+            f"uploads/screenshot_{int(time.time())}_{random.randint(1,10000)}.png"
+        )
+
+        # Upload the file
+        logger.info(
+            f"Uploading to Digital Ocean Spaces: {file_path_or_url} -> {remote_path}"
+        )
+        success = upload_to_space(file_path_or_url, remote_path)
+
+        if success:
+            # Generate and return the public URL
+            public_url = f"https://{DIGITAL_OCEAN_SPACE_NAME}.{DIGITAL_OCEAN_REGION}.digitaloceanspaces.com/{remote_path}"
+            logger.info(f"Successfully uploaded to Digital Ocean Spaces: {public_url}")
+            return public_url
+        else:
+            logger.error(f"Failed to upload local file: {file_path_or_url}")
+            # Return original path if upload fails
+            return file_path_or_url
+
+    # If it's not a local file or upload fails, return the original URL
+    return file_path_or_url
+
+
 # Initialize Nostr client
 async def init_nostr_client():
     """Initialize connection to Nostr relays"""
@@ -546,7 +595,7 @@ async def request_visual_help(
 
     Args:
         description: A detailed description of what help is needed
-        screenshot_url: URL to a screenshot or image showing the visual context
+        screenshot_url: URL to a screenshot or image showing the visual context (can be a local file path)
         max_price_sats: Maximum price willing to pay in satoshis (optional)
         wait_for_result: Whether to wait for the result (default: True)
         timeout: Maximum time to wait for result in seconds (default: 300)
@@ -556,15 +605,22 @@ async def request_visual_help(
     """
     try:
         logger.info(f"Request visual help called with description: {description}")
-        logger.info(f"Screenshot URL: {screenshot_url}")
+        logger.info(f"Screenshot URL or path: {screenshot_url}")
         logger.info(f"Max price: {max_price_sats}")
         logger.info(f"Wait for result: {wait_for_result}, Timeout: {timeout}s")
+
+        # Check if screenshot_url is a local file path and upload if needed
+        if screenshot_url:
+            public_url = ensure_public_url(screenshot_url)
+            logger.info(f"Using screenshot URL: {public_url}")
+        else:
+            public_url = ""
 
         if wait_for_result:
             # Use the request_and_wait_for_result function to wait for responses
             logger.info("Waiting for result...")
             result = await request_and_wait_for_result(
-                description, screenshot_url, max_price_sats, timeout
+                description, public_url, max_price_sats, timeout
             )
             logger.info(f"Received result after waiting: {result}")
             return result
@@ -572,7 +628,7 @@ async def request_visual_help(
             # Just broadcast the event without waiting
             logger.info("Broadcasting event without waiting for result")
             broadcast_result = await create_and_broadcast_nostr_event(
-                description, screenshot_url, max_price_sats
+                description, public_url, max_price_sats
             )
 
             event_id = broadcast_result["event_id"]
@@ -589,7 +645,10 @@ async def request_visual_help(
                 "selected_offer": None,
                 "result": {
                     "content": f"Broadcast request for: {description}",
-                    "screenshot_url": screenshot_url,
+                    "screenshot_url": public_url,
+                    "original_screenshot_path": (
+                        screenshot_url if public_url != screenshot_url else None
+                    ),
                     "max_price_sats": max_price_sats,
                     "event_id": event_id,
                     "sent_to": broadcast_result["success"],
