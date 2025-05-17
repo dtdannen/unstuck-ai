@@ -25,6 +25,7 @@ try:
         Tag,
         Filter,
         Event,
+        EventId,
         HandleNotification,
         RelayMessage,
         Timestamp,
@@ -57,7 +58,7 @@ if NOSTR_SDK_AVAILABLE:
     logger.info(
         f"Nostr client initialized with public key: {keys.public_key().to_hex()}"
     )
-    
+
     # We'll connect to relays when needed in the request_visual_help function
     logger.info(f"Will connect to relays: {RELAY_URLS}")
 
@@ -174,19 +175,11 @@ async def request_and_wait_for_result(
             },
         }
 
-    # Create kind 5109 event for help request
-    tags = [
-        Tag.parse(["description", description]),
-        Tag.parse(["image", screenshot_url]),
-    ]
-
-    if max_price_sats:
-        tags.append(Tag.parse(["max_price", str(max_price_sats)]))
-
-    # Build and send the event
-    builder = EventBuilder(Kind(5109), description).tags(tags)
-    result = await client.send_event_builder(builder)
-    job_id = result.id.to_hex()
+    # Create and broadcast the event
+    broadcast_result = await create_and_broadcast_nostr_event(
+        description, screenshot_url, max_price_sats
+    )
+    job_id = broadcast_result["event_id"]
 
     logger.info(f"Sent job request with ID: {job_id}")
 
@@ -195,7 +188,7 @@ async def request_and_wait_for_result(
 
     # Set up filter for responses to our event
     one_hour_ago = Timestamp.from_secs(Timestamp.now().as_secs() - 3600)
-    response_filter = Filter().event(result.id).since(one_hour_ago)
+    response_filter = Filter().event(EventId.parse(job_id)).since(one_hour_ago)
     await client.subscribe(response_filter)
 
     # Start handling notifications
@@ -221,28 +214,32 @@ async def request_and_wait_for_result(
         "offers": handler.offers,
         "selected_offer": None,
         "result": handler.result,
+        "broadcast_info": {
+            "sent_to": broadcast_result["success"],
+            "failed_relays": broadcast_result["failed"],
+        },
     }
 
 
-# Function to create a Nostr event
-def create_nostr_event(
+# Function to create and broadcast a Nostr event
+async def create_and_broadcast_nostr_event(
     description: str, screenshot_url: str, max_price_sats: Optional[int] = None
-) -> str:
+) -> Dict[str, Any]:
     """
-    Create a Nostr event requesting visual help.
-    
+    Create and broadcast a Nostr event requesting visual help.
+
     Args:
         description: A detailed description of what help is needed
         screenshot_url: URL to a screenshot or image showing the visual context
         max_price_sats: Maximum price willing to pay in satoshis (optional)
-        
+
     Returns:
-        The event ID of the created event
+        Dictionary containing event ID and broadcast results
     """
     if not NOSTR_SDK_AVAILABLE:
         logger.warning("Nostr SDK not available, cannot create event")
-        return "mock-event-id"
-    
+        return {"event_id": "mock-event-id", "success": [], "failed": []}
+
     # Create kind 5109 event for help request
     tags = [
         Tag.parse(["description", description]),
@@ -254,18 +251,26 @@ def create_nostr_event(
 
     # Build the event
     builder = EventBuilder(Kind(5109), description).tags(tags)
-    
-    # Sign the event
-    event = builder.sign_with_keys(keys)
-    event_id = event.id().to_hex()
-    
-    logger.info(f"Created Nostr event with ID: {event_id}")
-    
-    return event_id
+
+    # Add relays and connect
+    for relay_url in RELAY_URLS:
+        await client.add_relay(relay_url.strip())
+    await client.connect()
+    logger.info(f"Connected to relays: {RELAY_URLS}")
+
+    # Send the event to relays
+    output = await client.send_event_builder(builder)
+    event_id = output.id.to_hex()
+
+    logger.info(f"Event ID: {event_id}")
+    logger.info(f"Sent to: {output.success}")
+    logger.info(f"Not sent to: {output.failed}")
+
+    return {"event_id": event_id, "success": output.success, "failed": output.failed}
 
 
 @mcp.tool()
-def request_visual_help(
+async def request_visual_help(
     description: str = "",
     screenshot_url: str = "",
     max_price_sats: Optional[int] = None,
@@ -274,8 +279,7 @@ def request_visual_help(
     Request visual computer interaction help from humans through Nostr.
 
     This tool sends a request to Nostr relays asking for help with a visual computer interaction task.
-    It waits for offers from human helpers, selects the cheapest valid offer (if max_price_sats is set),
-    and returns the result.
+    It broadcasts the request to all configured relays and returns the event ID and broadcast results.
 
     Args:
         description: A detailed description of what help is needed
@@ -283,18 +287,26 @@ def request_visual_help(
         max_price_sats: Maximum price willing to pay in satoshis (optional)
 
     Returns:
-        A dictionary containing the job ID, offers received, selected offer, and result
+        A dictionary containing the job ID, broadcast results, and other metadata
     """
     try:
         logger.info(f"Request visual help called with description: {description}")
         logger.info(f"Screenshot URL: {screenshot_url}")
         logger.info(f"Max price: {max_price_sats}")
 
-        # Create a Nostr event
-        event_id = create_nostr_event(description, screenshot_url, max_price_sats)
-        logger.info(f"Created Nostr event with ID: {event_id}")
+        # Create and broadcast a Nostr event
+        broadcast_result = await create_and_broadcast_nostr_event(
+            description, screenshot_url, max_price_sats
+        )
 
-        # Return a response with the event ID
+        event_id = broadcast_result["event_id"]
+        logger.info(f"Broadcast Nostr event with ID: {event_id}")
+        logger.info(f"Successfully sent to: {broadcast_result['success']}")
+
+        if broadcast_result["failed"]:
+            logger.warning(f"Failed to send to: {broadcast_result['failed']}")
+
+        # Return a response with the event ID and broadcast results
         result = {
             "job_id": event_id,
             "offers": [],
@@ -304,6 +316,8 @@ def request_visual_help(
                 "screenshot_url": screenshot_url,
                 "max_price_sats": max_price_sats,
                 "event_id": event_id,
+                "sent_to": broadcast_result["success"],
+                "failed_relays": broadcast_result["failed"],
             },
         }
 
