@@ -13,13 +13,14 @@ Components:
     - [x] receives the result, returns it as the result of the MCP tool call
     - [ ] (testing) check invoice was paid in payment simulator before sending 6109
     - [x] get image upload working on digital ocean
-    - [ ] get goose or claude to take a screenshot and call the mcp tool correctly
+    - [x] get goose or claude to take a screenshot and call the mcp tool correctly
+    - [ ] get goose to execute the action that the human gives (from the result of the mcp tool call)
 
 2. Unstuck Frontend (Job Board and Workspace)
     - [ ] User login via Nostr
-    - [ ] Pull job offers from Nostr relays
+    - [x] Pull job offers from Nostr relays
     - [ ] Allow user to set a default job amount in sats
-    - [ ] Display job offers
+    - [x] Display job offers
     - [ ] Allow user to select a job
         - [ ] generate a lightning invoice for the amount
         - [ ] broadcast a kind 7000 event with the invoice and price
