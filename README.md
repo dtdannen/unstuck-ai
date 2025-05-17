@@ -1,2 +1,27 @@
 # unstuck-ai
 MCP Server to ask humans for help
+
+## Development Plan
+
+Components:
+
+1. MCP Server
+
+    - [ ] sends a kind 51xx event request for visual computer interaction help
+    - [ ] listens for feedback responses for prices and corresponding invoices
+    - [ ] selects an offer by paying the invoice
+    - [ ] receives the result, returns it as the result of the MCP tool call
+
+2. Unstuck Frontend (Job Board and Workspace)
+    - [ ] User login via Nostr
+    - [ ] Pull job offers from Nostr relays
+    - [ ] Allow user to set a default job amount in sats
+    - [ ] Display job offers
+    - [ ] Allow user to select a job
+        - [ ] generate a lightning invoice for the amount
+        - [ ] broadcast a kind 7000 event with the invoice and price
+        - [ ] show a notification when the invoice was paid
+    - [ ] Show a workspace like page for the user to do the work
+    - [ ] Send the final job result event when the user is done
+
+ 
