@@ -1,0 +1,20 @@
+[project]
+name = "unstuck-ai"
+version = "0.1.0"
+description = "MCP Server to ask humans for help with visual computer interaction through Nostr"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "python-dotenv>=1.0.0",
+    "nostr-sdk>=0.41.0",
+    "mcp[cli]>=1.2.0",
+]
+
+[project.scripts]
+unstuck-ai = "mcp_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
