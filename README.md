@@ -7,10 +7,10 @@ Components:
 
 1. MCP Server
 
-    - [ ] sends a kind 51xx event request for visual computer interaction help
-    - [ ] listens for feedback responses for prices and corresponding invoices
+    - [x] sends a kind 5109 event request for visual computer interaction help
+    - [x] listens for feedback responses for prices and corresponding invoices
     - [ ] selects an offer by paying the invoice
-    - [ ] receives the result, returns it as the result of the MCP tool call
+    - [x] receives the result, returns it as the result of the MCP tool call
 
 2. Unstuck Frontend (Job Board and Workspace)
     - [ ] User login via Nostr
