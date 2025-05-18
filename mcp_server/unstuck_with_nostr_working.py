@@ -215,7 +215,7 @@ def execute_actions(actions_data):
         return {"success": False, "error": str(e)}
 
 # Import Digital Ocean Spaces upload functionality
-from test_do_spaces_upload import upload_to_space
+from mcp_server.utility.test_do_spaces_upload import upload_to_space
 
 # Configure logging
 logging.basicConfig(

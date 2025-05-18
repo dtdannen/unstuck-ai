@@ -1,6 +1,7 @@
 .env
 venv
 mcp_server/.venv
+mcp_server/__pycache__/
 *.cpython
 mcp_server/unstuck_ai/__pycache__
 mcp_server/__pycache__
@@ -11,3 +12,4 @@ mcp_server/__pycache__/unstuck_with_nostr_working.cpython-312.pyc
 frontend/node_modules
 frontend/.next
 mcp_server/__pycache__/unstuck_with_nostr_working.cpython-312.pyc
+
