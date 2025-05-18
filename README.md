@@ -41,7 +41,7 @@ Components:
 
  ```bash
  cd mcp_server/
- fastmcp run unstuck_with_nostr_working.py:mcp --transport sse
+ fastmcp run unstuck_ai/server.py:mcp --transport sse
  ```
 
  then in another terminal run goose
