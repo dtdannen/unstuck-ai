@@ -53,5 +53,14 @@ Components:
 and then you can try using it with a propmt to goose like:
 
 ```bash
-( O)> can you take a screenshot of my whole screen and then send a request using unstuck helper tool to ask a human what icon I can click to open discord? Please use this method of taking screenshots: mkdir -p ~/screenshots && screencapture -x ~/screenshots/desktop_screenshot_$(date +%Y%m%d_%H%M%S).png && ls -la ~/screenshots/ | grep png | tail -1
+( O)> can you use the unstuck ai tool to get help so I can open safari on my machine? First take a screenshot of my screen, save it and print the file path, and then give that file path when you call the tool. There are lots of screenshots, so make sure you save the screenshot with a timestamp and record that timestamp so you use the right screenshot
+
+This is a robust way to take screenshots:
+
+timestamp=$(date +"%Y%m%d_%H%M%S")
+output_path="/Users/dustin/screenshot_$timestamp.png"
+cp /tmp/screenshot.png "$output_path"
+echo "Screenshot saved at: $output_path"
+
+Make sure the file exists before calling the unstuck ai tool
 ```

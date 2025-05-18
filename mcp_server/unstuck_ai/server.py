@@ -14,6 +14,7 @@ from mcp.types import ErrorData, INTERNAL_ERROR, INVALID_PARAMS
 # Import PyAutoGUI for mouse control
 try:
     import pyautogui
+
     PYAUTOGUI_AVAILABLE = True
     logger = logging.getLogger("unstuck-ai")
     logger.info("PyAutoGUI is available")
@@ -22,11 +23,12 @@ except ImportError:
     logger = logging.getLogger("unstuck-ai")
     logger.warning("PyAutoGUI is not available")
 
+
 # Functions for executing mouse actions
 def execute_click(x_percent, y_percent):
     """
     Execute a click at the specified percentage coordinates of the screen.
-    
+
     Args:
         x_percent: X coordinate as a percentage of screen width (0-100)
         y_percent: Y coordinate as a percentage of screen height (0-100)
@@ -34,37 +36,40 @@ def execute_click(x_percent, y_percent):
     if not PYAUTOGUI_AVAILABLE:
         logger.error("PyAutoGUI not available, cannot execute click")
         return False
-    
+
     try:
         # Get screen size
         screen_width, screen_height = pyautogui.size()
         logger.info(f"Screen size: {screen_width}x{screen_height}")
-        
+
         # Calculate pixel coordinates
         x = int((x_percent / 100) * screen_width)
         y = int((y_percent / 100) * screen_height)
-        logger.info(f"Executing click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%")
-        
+        logger.info(
+            f"Executing click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%"
+        )
+
         # Add a small delay before executing the action
         time.sleep(0.5)
-        
+
         # Move to position first, then click
         pyautogui.moveTo(x, y, duration=0.2)
         logger.info(f"Moved to position ({x}, {y})")
-        
+
         # Execute the click
         pyautogui.click(x, y)
         logger.info(f"Clicked at position ({x}, {y})")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error executing click: {str(e)}")
         return False
 
+
 def execute_double_click(x_percent, y_percent):
     """
     Execute a double-click at the specified percentage coordinates of the screen.
-    
+
     Args:
         x_percent: X coordinate as a percentage of screen width (0-100)
         y_percent: Y coordinate as a percentage of screen height (0-100)
@@ -72,37 +77,40 @@ def execute_double_click(x_percent, y_percent):
     if not PYAUTOGUI_AVAILABLE:
         logger.error("PyAutoGUI not available, cannot execute double-click")
         return False
-    
+
     try:
         # Get screen size
         screen_width, screen_height = pyautogui.size()
         logger.info(f"Screen size: {screen_width}x{screen_height}")
-        
+
         # Calculate pixel coordinates
         x = int((x_percent / 100) * screen_width)
         y = int((y_percent / 100) * screen_height)
-        logger.info(f"Executing double-click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%")
-        
+        logger.info(
+            f"Executing double-click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%"
+        )
+
         # Add a small delay before executing the action
         time.sleep(0.5)
-        
+
         # Move to position first, then double-click
         pyautogui.moveTo(x, y, duration=0.2)
         logger.info(f"Moved to position ({x}, {y})")
-        
+
         # Execute the double-click
         pyautogui.doubleClick(x, y)
         logger.info(f"Double-clicked at position ({x}, {y})")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error executing double-click: {str(e)}")
         return False
 
+
 def execute_drag(start_x_percent, start_y_percent, end_x_percent, end_y_percent):
     """
     Execute a drag operation from start to end coordinates (specified as percentages).
-    
+
     Args:
         start_x_percent: Starting X coordinate as a percentage of screen width (0-100)
         start_y_percent: Starting Y coordinate as a percentage of screen height (0-100)
@@ -112,110 +120,216 @@ def execute_drag(start_x_percent, start_y_percent, end_x_percent, end_y_percent)
     if not PYAUTOGUI_AVAILABLE:
         logger.error("PyAutoGUI not available, cannot execute drag")
         return False
-    
+
     try:
         # Get screen size
         screen_width, screen_height = pyautogui.size()
         logger.info(f"Screen size: {screen_width}x{screen_height}")
-        
+
         # Calculate pixel coordinates
         start_x = int((start_x_percent / 100) * screen_width)
         start_y = int((start_y_percent / 100) * screen_height)
         end_x = int((end_x_percent / 100) * screen_width)
         end_y = int((end_y_percent / 100) * screen_height)
-        
+
         logger.info(f"Executing drag from ({start_x}, {start_y}) to ({end_x}, {end_y})")
-        
+
         # Add a small delay before executing the action
         time.sleep(0.5)
-        
+
         # Move to start position
         pyautogui.moveTo(start_x, start_y, duration=0.2)
         logger.info(f"Moved to start position ({start_x}, {start_y})")
-        
+
         # Execute the drag
         pyautogui.dragTo(end_x, end_y, duration=0.5)  # 0.5 second drag
         logger.info(f"Dragged to end position ({end_x}, {end_y})")
-        
+
         return True
     except Exception as e:
         logger.error(f"Error executing drag: {str(e)}")
         return False
 
+
 def execute_actions(actions_data):
     """
     Execute a series of mouse actions based on the provided JSON data.
-    
+
     Args:
         actions_data: A dictionary containing actions to execute
-        
+
     Returns:
         A dictionary with results of the execution
     """
     if not PYAUTOGUI_AVAILABLE:
         logger.error("PyAutoGUI not available, cannot execute actions")
         return {"success": False, "error": "PyAutoGUI not available"}
-    
+
     try:
         logger.info(f"Executing actions: {json.dumps(actions_data)[:200]}...")
-        
+
         # Validate the input data
         if not isinstance(actions_data, dict):
             logger.error("Invalid actions data format: not a dictionary")
             return {"success": False, "error": "Invalid actions data format"}
-        
-        if "actions" not in actions_data or not isinstance(actions_data["actions"], list):
+
+        if "actions" not in actions_data or not isinstance(
+            actions_data["actions"], list
+        ):
             logger.error("Invalid actions data: 'actions' list not found")
-            return {"success": False, "error": "Invalid actions data: 'actions' list not found"}
-        
+            return {
+                "success": False,
+                "error": "Invalid actions data: 'actions' list not found",
+            }
+
         # Track results for each action
         results = []
-        
+
         # Execute each action
         for i, action in enumerate(actions_data["actions"]):
             try:
                 action_type = action.get("type")
-                
+
                 if action_type == "click":
                     success = execute_click(action.get("x", 0), action.get("y", 0))
                     results.append({"index": i, "type": "click", "success": success})
-                
+
                 elif action_type == "doubleClick":
-                    success = execute_double_click(action.get("x", 0), action.get("y", 0))
-                    results.append({"index": i, "type": "doubleClick", "success": success})
-                
+                    success = execute_double_click(
+                        action.get("x", 0), action.get("y", 0)
+                    )
+                    results.append(
+                        {"index": i, "type": "doubleClick", "success": success}
+                    )
+
                 elif action_type == "drag":
                     start = action.get("start", {})
                     end = action.get("end", {})
                     success = execute_drag(
-                        start.get("x", 0), start.get("y", 0),
-                        end.get("x", 0), end.get("y", 0)
+                        start.get("x", 0),
+                        start.get("y", 0),
+                        end.get("x", 0),
+                        end.get("y", 0),
                     )
                     results.append({"index": i, "type": "drag", "success": success})
-                
+
                 else:
                     logger.warning(f"Unknown action type: {action_type}")
-                    results.append({"index": i, "type": action_type, "success": False, "error": "Unknown action type"})
-                
+                    results.append(
+                        {
+                            "index": i,
+                            "type": action_type,
+                            "success": False,
+                            "error": "Unknown action type",
+                        }
+                    )
+
                 # Small delay between actions
                 time.sleep(0.2)
-                
+
             except Exception as e:
                 logger.error(f"Error executing action {i}: {str(e)}")
-                results.append({"index": i, "type": action.get("type", "unknown"), "success": False, "error": str(e)})
-        
-        return {
-            "success": True,
-            "actions_executed": len(results),
-            "results": results
-        }
-        
+                results.append(
+                    {
+                        "index": i,
+                        "type": action.get("type", "unknown"),
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
+
+        return {"success": True, "actions_executed": len(results), "results": results}
+
     except Exception as e:
         logger.error(f"Error in execute_actions: {str(e)}")
         return {"success": False, "error": str(e)}
 
-# Import Digital Ocean Spaces upload functionality
-from mcp_server.utility.test_do_spaces_upload import upload_to_space
+
+# Digital Ocean Spaces upload functionality
+def upload_to_space(local_file, remote_file):
+    """
+    Upload a file to DigitalOcean Spaces
+
+    Args:
+        local_file (str): Path to the local file
+        remote_file (str): Path in the Space where the file will be stored
+
+    Returns:
+        bool: True if upload was successful, False otherwise
+    """
+    try:
+        # Initialize the S3 client for DigitalOcean Spaces
+        import boto3
+        from botocore.exceptions import NoCredentialsError
+        
+        # Get credentials from environment variables
+        aws_access_key = os.getenv("DIGITAL_OCEAN_SPACES_ACCESS_KEY")
+        aws_secret_key = os.getenv("DIGITAL_OCEAN_SPACES_SECRET_KEY")
+        region = os.getenv("DIGITAL_OCEAN_SPACES_REGION", "nyc3")
+        space_name = os.getenv("DIGITAL_OCEAN_SPACE_NAME", "unstuck-goose")
+        endpoint_url = f"https://{region}.digitaloceanspaces.com"
+        
+        # Log credential information (masked for security)
+        logger.info(f"DO Spaces Access Key: {'*' * 4}{aws_access_key[-4:] if aws_access_key else 'None'}")
+        logger.info(f"DO Spaces Secret Key: {'*' * 4}{aws_secret_key[-4:] if aws_secret_key else 'None'}")
+        logger.info(f"DO Spaces Region: {region}")
+        logger.info(f"DO Space Name: {space_name}")
+        logger.info(f"DO Endpoint URL: {endpoint_url}")
+        
+        # Validate file exists
+        if not os.path.exists(local_file):
+            logger.error(f"File not found: {local_file}")
+            return False
+            
+        # Validate credentials
+        if not aws_access_key or not aws_secret_key:
+            logger.error("Missing Digital Ocean Spaces credentials. Check your .env file for DIGITAL_OCEAN_SPACES_ACCESS_KEY and DIGITAL_OCEAN_SPACES_SECRET_KEY")
+            return False
+        
+        logger.info(f"Creating S3 client for Digital Ocean Spaces...")
+        s3 = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=endpoint_url,
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+        )
+
+        # Upload the file with public-read ACL to make it publicly accessible
+        extra_args = {
+            "ACL": "public-read",  # This makes the file publicly accessible
+            "ContentType": "image/png",  # Set the appropriate content type
+        }
+
+        logger.info(f"Uploading file {local_file} to {space_name}/{remote_file}...")
+        s3.upload_file(local_file, space_name, remote_file, ExtraArgs=extra_args)
+        logger.info(f"Upload Successful: {local_file} -> {space_name}/{remote_file}")
+
+        # Generate and print the public URL
+        public_url = f"https://{space_name}.{region}.digitaloceanspaces.com/{remote_file}"
+        logger.info(f"Public URL: {public_url}")
+
+        return True
+    except FileNotFoundError as e:
+        logger.error(f"The file was not found: {local_file}")
+        logger.error(f"FileNotFoundError details: {str(e)}")
+        return False
+    except NoCredentialsError as e:
+        logger.error("Credentials not available or invalid")
+        logger.error(f"NoCredentialsError details: {str(e)}")
+        return False
+    except boto3.exceptions.S3UploadFailedError as e:
+        logger.error(f"S3 upload failed: {str(e)}")
+        return False
+    except boto3.exceptions.Boto3Error as e:
+        logger.error(f"Boto3 error during upload: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"An error occurred during upload: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return False
 
 # Configure logging
 logging.basicConfig(
@@ -450,22 +564,28 @@ class NotificationHandler:
         if event_kind == 6109 and content_json and PYAUTOGUI_AVAILABLE:
             try:
                 logger.info("Detected kind 6109 event with potential actions")
-                
+
                 # Check if the content has the expected format for actions
-                if (isinstance(content_json, dict) and 
-                    "actions" in content_json and 
-                    isinstance(content_json["actions"], list)):
-                    
-                    logger.info(f"Found {len(content_json['actions'])} actions to execute")
-                    
+                if (
+                    isinstance(content_json, dict)
+                    and "actions" in content_json
+                    and isinstance(content_json["actions"], list)
+                ):
+
+                    logger.info(
+                        f"Found {len(content_json['actions'])} actions to execute"
+                    )
+
                     # Execute the actions
                     execution_result = execute_actions(content_json)
-                    
-                    logger.info(f"Actions execution result: {json.dumps(execution_result)}")
-                    
+
+                    logger.info(
+                        f"Actions execution result: {json.dumps(execution_result)}"
+                    )
+
                     # Add the execution result to the content
                     content_json["execution_result"] = execution_result
-                    
+
                     # Update the event content with the execution result
                     event_content = json.dumps(content_json)
                 else:
@@ -729,7 +849,9 @@ async def request_and_wait_for_result(
             job_id = broadcast_result["event_id"]
             logger.info(f"Sent job request with ID: {job_id}")
         except Exception as e:
-            logger.error(f"Failed to create and broadcast Nostr event: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to create and broadcast Nostr event: {str(e)}", exc_info=True
+            )
             return {
                 "error": str(e),
                 "status": "failed",
@@ -738,8 +860,8 @@ async def request_and_wait_for_result(
                 "selected_offer": None,
                 "result": {
                     "content": f"Error creating Nostr event: {str(e)}",
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             }
 
         # Create notification handler for this job
@@ -770,7 +892,7 @@ async def request_and_wait_for_result(
                 "selected_offer": None,
                 "result": {
                     "content": f"Error subscribing to filter: {str(e)}",
-                    "error": str(e)
+                    "error": str(e),
                 },
                 "broadcast_info": {
                     "sent_to": broadcast_result["success"],
@@ -796,13 +918,13 @@ async def request_and_wait_for_result(
                 "result": {
                     "content": f"Timeout waiting for response after {timeout} seconds",
                     "status": "timeout",
-                    "error": "Request timed out"
+                    "error": "Request timed out",
                 },
                 "broadcast_info": {
                     "sent_to": broadcast_result["success"],
                     "failed_relays": broadcast_result["failed"],
                 },
-                "status": "timeout"
+                "status": "timeout",
             }
         except Exception as e:
             logger.error(f"Error waiting for job completion: {str(e)}", exc_info=True)
@@ -815,7 +937,7 @@ async def request_and_wait_for_result(
                 "selected_offer": None,
                 "result": {
                     "content": f"Error waiting for job completion: {str(e)}",
-                    "error": str(e)
+                    "error": str(e),
                 },
                 "broadcast_info": {
                     "sent_to": broadcast_result["success"],
@@ -837,17 +959,17 @@ async def request_and_wait_for_result(
             "job_id": job_id,
             "offers": handler.offers,
             "selected_offer": None,
-            "result": handler.result or {
-                "content": "No result received",
-                "status": "no_result"
-            },
+            "result": handler.result
+            or {"content": "No result received", "status": "no_result"},
             "broadcast_info": {
                 "sent_to": broadcast_result["success"],
                 "failed_relays": broadcast_result["failed"],
             },
         }
     except Exception as e:
-        logger.error(f"Unexpected error in request_and_wait_for_result: {str(e)}", exc_info=True)
+        logger.error(
+            f"Unexpected error in request_and_wait_for_result: {str(e)}", exc_info=True
+        )
         # Always return a result, even on unexpected errors
         return {
             "error": str(e),
@@ -857,8 +979,8 @@ async def request_and_wait_for_result(
             "selected_offer": None,
             "result": {
                 "content": f"Unexpected error in request_and_wait_for_result: {str(e)}",
-                "error": str(e)
-            }
+                "error": str(e),
+            },
         }
 
 
@@ -925,20 +1047,26 @@ async def create_and_broadcast_nostr_event(
             logger.info(f"Sent to: {output.success}")
             logger.info(f"Not sent to: {output.failed}")
 
-            return {"event_id": event_id, "success": output.success, "failed": output.failed}
+            return {
+                "event_id": event_id,
+                "success": output.success,
+                "failed": output.failed,
+            }
         except Exception as e:
             logger.error(f"Error sending event to relays: {str(e)}", exc_info=True)
             raise
 
     except Exception as e:
-        logger.error(f"Error in create_and_broadcast_nostr_event: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error in create_and_broadcast_nostr_event: {str(e)}", exc_info=True
+        )
         # Generate a mock event ID for error cases
         mock_event_id = f"error-{int(time.time())}"
         return {
             "event_id": mock_event_id,
             "success": [],
             "failed": RELAY_URLS,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -975,15 +1103,16 @@ async def request_visual_help(
         logger.info(f"Wait for result: {wait_for_result}")
         logger.info(f"Timeout: {timeout}s")
         logger.info("================================")
-        
+
         # Log raw arguments in debug mode
         if DEBUG_MODE:
             logger.info("==== RAW ARGUMENTS ====")
             import inspect
+
             frame = inspect.currentframe()
             args, _, _, values = inspect.getargvalues(frame)
             for arg in args:
-                if arg != 'self':
+                if arg != "self":
                     logger.info(f"{arg}: {values[arg]}")
             logger.info("=======================")
 
@@ -993,7 +1122,9 @@ async def request_visual_help(
             logger.info(f"Processing screenshot URL: {screenshot_url}")
             try:
                 public_url = ensure_public_url(screenshot_url)
-                if public_url == screenshot_url and not public_url.startswith(("http://", "https://")):
+                if public_url == screenshot_url and not public_url.startswith(
+                    ("http://", "https://")
+                ):
                     # If the URL didn't change and it's not a web URL, it means upload failed
                     logger.error(f"Failed to upload local screenshot: {screenshot_url}")
                     return {
@@ -1004,12 +1135,14 @@ async def request_visual_help(
                         "selected_offer": None,
                         "result": {
                             "content": f"Error: Failed to upload local screenshot: {screenshot_url}",
-                            "error": "Screenshot upload failed"
-                        }
+                            "error": "Screenshot upload failed",
+                        },
                     }
                 logger.info(f"Successfully processed to: {public_url}")
             except Exception as e:
-                logger.error(f"Failed to process screenshot URL: {str(e)}", exc_info=True)
+                logger.error(
+                    f"Failed to process screenshot URL: {str(e)}", exc_info=True
+                )
                 return {
                     "error": str(e),
                     "status": "failed",
@@ -1018,8 +1151,8 @@ async def request_visual_help(
                     "selected_offer": None,
                     "result": {
                         "content": f"Error processing screenshot URL: {str(e)}",
-                        "error": str(e)
-                    }
+                        "error": str(e),
+                    },
                 }
         else:
             logger.warning("No screenshot URL provided")
@@ -1034,8 +1167,8 @@ async def request_visual_help(
                     "selected_offer": None,
                     "result": {
                         "content": "Error: Neither screenshot URL nor description provided",
-                        "error": "Missing required parameters"
-                    }
+                        "error": "Missing required parameters",
+                    },
                 }
 
         if wait_for_result:
@@ -1091,8 +1224,8 @@ async def request_visual_help(
             "selected_offer": None,
             "result": {
                 "content": f"Error in request_visual_help: {str(e)}",
-                "error": str(e)
-            }
+                "error": str(e),
+            },
         }
 
 
