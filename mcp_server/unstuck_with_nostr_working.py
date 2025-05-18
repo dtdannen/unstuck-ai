@@ -11,6 +11,209 @@ from mcp.server.fastmcp import FastMCP
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData, INTERNAL_ERROR, INVALID_PARAMS
 
+# Import PyAutoGUI for mouse control
+try:
+    import pyautogui
+    PYAUTOGUI_AVAILABLE = True
+    logger = logging.getLogger("unstuck-ai")
+    logger.info("PyAutoGUI is available")
+except ImportError:
+    PYAUTOGUI_AVAILABLE = False
+    logger = logging.getLogger("unstuck-ai")
+    logger.warning("PyAutoGUI is not available")
+
+# Functions for executing mouse actions
+def execute_click(x_percent, y_percent):
+    """
+    Execute a click at the specified percentage coordinates of the screen.
+    
+    Args:
+        x_percent: X coordinate as a percentage of screen width (0-100)
+        y_percent: Y coordinate as a percentage of screen height (0-100)
+    """
+    if not PYAUTOGUI_AVAILABLE:
+        logger.error("PyAutoGUI not available, cannot execute click")
+        return False
+    
+    try:
+        # Get screen size
+        screen_width, screen_height = pyautogui.size()
+        logger.info(f"Screen size: {screen_width}x{screen_height}")
+        
+        # Calculate pixel coordinates
+        x = int((x_percent / 100) * screen_width)
+        y = int((y_percent / 100) * screen_height)
+        logger.info(f"Executing click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%")
+        
+        # Add a small delay before executing the action
+        time.sleep(0.5)
+        
+        # Move to position first, then click
+        pyautogui.moveTo(x, y, duration=0.2)
+        logger.info(f"Moved to position ({x}, {y})")
+        
+        # Execute the click
+        pyautogui.click(x, y)
+        logger.info(f"Clicked at position ({x}, {y})")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error executing click: {str(e)}")
+        return False
+
+def execute_double_click(x_percent, y_percent):
+    """
+    Execute a double-click at the specified percentage coordinates of the screen.
+    
+    Args:
+        x_percent: X coordinate as a percentage of screen width (0-100)
+        y_percent: Y coordinate as a percentage of screen height (0-100)
+    """
+    if not PYAUTOGUI_AVAILABLE:
+        logger.error("PyAutoGUI not available, cannot execute double-click")
+        return False
+    
+    try:
+        # Get screen size
+        screen_width, screen_height = pyautogui.size()
+        logger.info(f"Screen size: {screen_width}x{screen_height}")
+        
+        # Calculate pixel coordinates
+        x = int((x_percent / 100) * screen_width)
+        y = int((y_percent / 100) * screen_height)
+        logger.info(f"Executing double-click at coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%")
+        
+        # Add a small delay before executing the action
+        time.sleep(0.5)
+        
+        # Move to position first, then double-click
+        pyautogui.moveTo(x, y, duration=0.2)
+        logger.info(f"Moved to position ({x}, {y})")
+        
+        # Execute the double-click
+        pyautogui.doubleClick(x, y)
+        logger.info(f"Double-clicked at position ({x}, {y})")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error executing double-click: {str(e)}")
+        return False
+
+def execute_drag(start_x_percent, start_y_percent, end_x_percent, end_y_percent):
+    """
+    Execute a drag operation from start to end coordinates (specified as percentages).
+    
+    Args:
+        start_x_percent: Starting X coordinate as a percentage of screen width (0-100)
+        start_y_percent: Starting Y coordinate as a percentage of screen height (0-100)
+        end_x_percent: Ending X coordinate as a percentage of screen width (0-100)
+        end_y_percent: Ending Y coordinate as a percentage of screen height (0-100)
+    """
+    if not PYAUTOGUI_AVAILABLE:
+        logger.error("PyAutoGUI not available, cannot execute drag")
+        return False
+    
+    try:
+        # Get screen size
+        screen_width, screen_height = pyautogui.size()
+        logger.info(f"Screen size: {screen_width}x{screen_height}")
+        
+        # Calculate pixel coordinates
+        start_x = int((start_x_percent / 100) * screen_width)
+        start_y = int((start_y_percent / 100) * screen_height)
+        end_x = int((end_x_percent / 100) * screen_width)
+        end_y = int((end_y_percent / 100) * screen_height)
+        
+        logger.info(f"Executing drag from ({start_x}, {start_y}) to ({end_x}, {end_y})")
+        
+        # Add a small delay before executing the action
+        time.sleep(0.5)
+        
+        # Move to start position
+        pyautogui.moveTo(start_x, start_y, duration=0.2)
+        logger.info(f"Moved to start position ({start_x}, {start_y})")
+        
+        # Execute the drag
+        pyautogui.dragTo(end_x, end_y, duration=0.5)  # 0.5 second drag
+        logger.info(f"Dragged to end position ({end_x}, {end_y})")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error executing drag: {str(e)}")
+        return False
+
+def execute_actions(actions_data):
+    """
+    Execute a series of mouse actions based on the provided JSON data.
+    
+    Args:
+        actions_data: A dictionary containing actions to execute
+        
+    Returns:
+        A dictionary with results of the execution
+    """
+    if not PYAUTOGUI_AVAILABLE:
+        logger.error("PyAutoGUI not available, cannot execute actions")
+        return {"success": False, "error": "PyAutoGUI not available"}
+    
+    try:
+        logger.info(f"Executing actions: {json.dumps(actions_data)[:200]}...")
+        
+        # Validate the input data
+        if not isinstance(actions_data, dict):
+            logger.error("Invalid actions data format: not a dictionary")
+            return {"success": False, "error": "Invalid actions data format"}
+        
+        if "actions" not in actions_data or not isinstance(actions_data["actions"], list):
+            logger.error("Invalid actions data: 'actions' list not found")
+            return {"success": False, "error": "Invalid actions data: 'actions' list not found"}
+        
+        # Track results for each action
+        results = []
+        
+        # Execute each action
+        for i, action in enumerate(actions_data["actions"]):
+            try:
+                action_type = action.get("type")
+                
+                if action_type == "click":
+                    success = execute_click(action.get("x", 0), action.get("y", 0))
+                    results.append({"index": i, "type": "click", "success": success})
+                
+                elif action_type == "doubleClick":
+                    success = execute_double_click(action.get("x", 0), action.get("y", 0))
+                    results.append({"index": i, "type": "doubleClick", "success": success})
+                
+                elif action_type == "drag":
+                    start = action.get("start", {})
+                    end = action.get("end", {})
+                    success = execute_drag(
+                        start.get("x", 0), start.get("y", 0),
+                        end.get("x", 0), end.get("y", 0)
+                    )
+                    results.append({"index": i, "type": "drag", "success": success})
+                
+                else:
+                    logger.warning(f"Unknown action type: {action_type}")
+                    results.append({"index": i, "type": action_type, "success": False, "error": "Unknown action type"})
+                
+                # Small delay between actions
+                time.sleep(0.2)
+                
+            except Exception as e:
+                logger.error(f"Error executing action {i}: {str(e)}")
+                results.append({"index": i, "type": action.get("type", "unknown"), "success": False, "error": str(e)})
+        
+        return {
+            "success": True,
+            "actions_executed": len(results),
+            "results": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in execute_actions: {str(e)}")
+        return {"success": False, "error": str(e)}
+
 # Import Digital Ocean Spaces upload functionality
 from test_do_spaces_upload import upload_to_space
 
@@ -232,6 +435,7 @@ class NotificationHandler:
             f"Result event received - ID: {event_id}, Kind: {event_kind}, Status: {status}"
         )
 
+        content_json = None
         try:
             # Try to parse content as JSON
             content_json = json.loads(event.content())
@@ -242,12 +446,48 @@ class NotificationHandler:
             # If not JSON, log as text
             logger.info(f"Result content (text): {event.content()[:200]}...")
 
+        # Check if this is a kind 6109 event with actions to execute
+        if event_kind == 6109 and content_json and PYAUTOGUI_AVAILABLE:
+            try:
+                logger.info("Detected kind 6109 event with potential actions")
+                
+                # Check if the content has the expected format for actions
+                if (isinstance(content_json, dict) and 
+                    "actions" in content_json and 
+                    isinstance(content_json["actions"], list)):
+                    
+                    logger.info(f"Found {len(content_json['actions'])} actions to execute")
+                    
+                    # Execute the actions
+                    execution_result = execute_actions(content_json)
+                    
+                    logger.info(f"Actions execution result: {json.dumps(execution_result)}")
+                    
+                    # Add the execution result to the content
+                    content_json["execution_result"] = execution_result
+                    
+                    # Update the event content with the execution result
+                    event_content = json.dumps(content_json)
+                else:
+                    logger.info("Kind 6109 event does not contain valid actions format")
+            except Exception as e:
+                logger.error(f"Error executing actions from kind 6109 event: {str(e)}")
+                # If there's an error, add it to the content
+                if content_json:
+                    content_json["execution_error"] = str(e)
+                    event_content = json.dumps(content_json)
+                else:
+                    event_content = event.content()
+        else:
+            # Use the original content
+            event_content = event.content()
+
         # Store the result
         self.result = {
             "event_id": event_id,
             "kind": event_kind,
             "pubkey": event.author().to_hex(),
-            "content": event.content(),
+            "content": event_content,
             "status": status,
             "tags": [tag.as_vec() for tag in event.tags().to_vec()],
             "received_at": time.time(),

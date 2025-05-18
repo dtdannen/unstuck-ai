@@ -1,4 +1,12 @@
 # unstuck-ai
+
+<div align="center">
+  <a href="https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV">
+    <img src="frontend/public/unstuckgoose.png" alt="Unstuck AI Demo Video" width="600">
+  </a>
+  <p>👆 Click the image to watch the demo video 👆</p>
+</div>
+
 MCP Server to ask humans for help
 
 ## Development Plan
@@ -11,7 +19,7 @@ Components:
     - [x] listens for feedback responses for prices and corresponding invoices
     - [x] selects an offer by paying the invoice
     - [x] receives the result, returns it as the result of the MCP tool call
-    - [ ] (testing) check invoice was paid in payment simulator before sending 6109
+    - [x] (testing) check invoice was paid in payment simulator before sending 6109
     - [x] get image upload working on digital ocean
     - [x] get goose or claude to take a screenshot and call the mcp tool correctly
     - [ ] get goose to execute the action that the human gives (from the result of the mcp tool call)
@@ -25,8 +33,8 @@ Components:
         - [x] generate a lightning invoice for the amount
         - [x] broadcast a kind 7000 event with the invoice and price
         - [ ] show a notification when the invoice was paid
-    - [ ] Show a workspace like page for the user to do the work
-    - [ ] Send the final job result event when the user is done
+    - [x] Show a workspace like page for the user to do the work
+    - [x] Send the final job result event when the user is done
 
  
  ## How to use
@@ -45,5 +53,5 @@ Components:
 and then you can try using it with a propmt to goose like:
 
 ```bash
-( O)> can you take a screenshot of my whole screen and then send a request using unstuck helper tool to ask a human what icon I can click to open firefox?
+( O)> can you take a screenshot of my whole screen and then send a request using unstuck helper tool to ask a human what icon I can click to open discord? Please use this method of taking screenshots: mkdir -p ~/screenshots && screencapture -x ~/screenshots/desktop_screenshot_$(date +%Y%m%d_%H%M%S).png && ls -la ~/screenshots/ | grep png | tail -1
 ```
