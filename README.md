@@ -7,7 +7,7 @@
   <p>👆 Click the image to watch the demo video 👆</p>
 </div>
 
-MCP Server to ask humans for help
+MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve visual roadblocks (captchas, web navigation, computer use) via a Nostr marketplace. Includes the MCP server and web app for humans to bid on tasks, complete them, and get paid.
 
 ## Development Plan
 
@@ -29,7 +29,7 @@ Components:
     - [x] Pull job offers from Nostr relays
     - [ ] Allow user to set a default job amount in sats
     - [x] Display job offers
-    - [ ] Allow user to select a job
+    - [x] Allow user to select a job
         - [x] generate a lightning invoice for the amount
         - [x] broadcast a kind 7000 event with the invoice and price
         - [ ] show a notification when the invoice was paid
