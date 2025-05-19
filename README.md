@@ -45,6 +45,18 @@ Components:
     - [x] Show a workspace like page for the user to do the work
     - [x] Send the final job result event when the user is done
 
+3. Misc
+  - [ ] Write a wiki page on kind 5109 so it shows up nicely in https://stats.dvmdash.live/kind-stats
+    - example article: https://njump.me/naddr1qvzqqqrcvgpzpkscaxrqqs8nhaynsahuz6c6jy4wtfhkl2x4zkwrmc4cyvaqmxz3qqykk6twvsar2vesxq02d424
+      - only needs these sections:
+        - Introduction that describes the inputs (text + screenshot) and outputs (mouse movement commands)
+        - example input event
+        - example output event
+    - instructions to write these wiki pages can be found here https://habla.news/u/dustind@dtdannen.github.io/1743798227950
+    - use a 'd' tag with the value 'kind:5109' so it shows on dvmdash
+    - use a 'title' tag like 'Nostr DVM Kind 5109/6109 - Visual Computer Task Help'
+
+
  
  ## How to use
 
