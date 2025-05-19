@@ -23,6 +23,8 @@ Components:
     - [x] get image upload working on digital ocean
     - [x] get goose or claude to take a screenshot and call the mcp tool correctly
     - [ ] get goose to execute the action that the human gives (from the result of the mcp tool call)
+        - [ ] translate coordinates to correct coordinates on screen
+        - [ ] get an automation library to work that performs clicking, double clicking, and dragging
 
 2. Unstuck Frontend (Job Board and Workspace)
     - [x] User login via Nostr
