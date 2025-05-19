@@ -48,6 +48,14 @@ Components:
  
  ## How to use
 
+Currently, the demo requires digital ocean spaces credentials for hosting the uploaded screenshots (any boto3 provider might work easily, like AWS) and it requires a Nostr Wallet Connect string (this is how the MCP Server pays the human's invoice). These should go into the .env file.
+
+```bash
+cp .env.example .env
+```
+
+Then put the credentials needed. The NOSTR_PRIVATE_KEY is for the AI agent, you probably want to generate a new one to use (i.e. it's not meant to be your personal nsec).
+
  ```bash
  cd mcp_server/
  fastmcp run unstuck_ai/server.py:mcp --transport sse
