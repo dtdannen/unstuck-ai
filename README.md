@@ -68,8 +68,18 @@ cp .env.example .env
 
 Then put the credentials needed. The NOSTR_PRIVATE_KEY is for the AI agent, you probably want to generate a new one to use (i.e. it's not meant to be your personal nsec).
 
+Set up python env
+
+```bash
+cd mcp_server/
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+then start the mcp server from within the `mcp_server` folder
+
  ```bash
- cd mcp_server/
  fastmcp run unstuck_ai/server.py:mcp --transport sse
  ```
 

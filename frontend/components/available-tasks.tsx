@@ -5,27 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
-
-// Define the relays to use
-const RELAYS = ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://relay.primal.net", "wss://relay.dvmdash.live"]
-
-interface TaskEvent {
-  id: string
-  pubkey: string
-  created_at: number
-  kind: number
-  tags: string[][]
-  content: string
-  sig: string
-}
+import Link from "next/link"
+import { fetchTasks, getCachedProfile, getTagValue } from "@/lib/nostr"
+import { NDKEvent, NDKUser } from '@nostr-dev-kit/ndk'
 
 interface TaskWithProfile {
-  event: TaskEvent
-  profile?: {
-    name?: string
-    picture?: string
-    about?: string
-  }
+  event: NDKEvent
+  profile?: NDKUser
 }
 
 export default function AvailableTasks() {
@@ -34,131 +20,56 @@ export default function AvailableTasks() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchTasks()
+    loadTasks()
   }, [])
 
-  async function fetchTasks() {
-    if (typeof window === "undefined") return
-
+  async function loadTasks() {
     try {
       setLoading(true)
       setError(null)
 
-      // Check if the library is available
-      if (!window.nostrTools && !window.NostrTools) {
-        console.error("Nostr tools not found in window object")
-        setError("Nostr library not available. Please refresh the page.")
-        setLoading(false)
-        return
-      }
+      // Fetch tasks from relays
+      const events = await fetchTasks(20)
+      console.log('Fetched tasks:', events)
 
-      // Try to get the SimplePool constructor from either global object
-      const nostrLib = window.nostrTools || window.NostrTools
+      // Create task objects with events
+      const tasksWithProfile: TaskWithProfile[] = events.map(event => ({
+        event,
+        profile: undefined
+      }))
 
-      if (!nostrLib.SimplePool) {
-        console.error("SimplePool not found in nostr library")
-        setError("Nostr library not properly loaded. Please refresh the page.")
-        setLoading(false)
-        return
-      }
-
-      const pool = new nostrLib.SimplePool()
-      const taskEvents: TaskWithProfile[] = []
-
-      // Fetch kind 5109 events (tasks)
-      const tasksPromise = new Promise<void>((resolve) => {
-        const sub = pool.subscribeMany(
-          RELAYS,
-          [
-            {
-              kinds: [5109, 30006], // Include both kinds mentioned
-              limit: 20,
-            },
-          ],
-          {
-            onevent(event) {
-              console.log("Task event received:", event)
-              taskEvents.push({ event })
-            },
-            oneose() {
-              // End of stored events
-              setTimeout(() => {
-                sub.close()
-                resolve()
-              }, 1000) // Give a little extra time for any late events
-            },
-          },
-        )
+      // Fetch profiles for task creators
+      const profilePromises = tasksWithProfile.map(async (task) => {
+        try {
+          const profile = await getCachedProfile(task.event.author.pubkey)
+          task.profile = profile || undefined
+        } catch (e) {
+          console.warn(`Failed to fetch profile for ${task.event.author.pubkey}:`, e)
+        }
       })
 
-      // Wait for tasks to be fetched
-      await tasksPromise
-
-      // If we have tasks, fetch profiles for the task creators
-      if (taskEvents.length > 0) {
-        const pubkeys = [...new Set(taskEvents.map((task) => task.event.pubkey))]
-
-        const profilesPromise = new Promise<void>((resolve) => {
-          const profileSub = pool.subscribeMany(
-            RELAYS,
-            [
-              {
-                kinds: [0],
-                authors: pubkeys,
-              },
-            ],
-            {
-              onevent(event) {
-                try {
-                  const profile = JSON.parse(event.content)
-                  // Update tasks with profile data
-                  taskEvents.forEach((task) => {
-                    if (task.event.pubkey === event.pubkey) {
-                      task.profile = profile
-                    }
-                  })
-                } catch (e) {
-                  console.error("Failed to parse profile data:", e)
-                }
-              },
-              oneose() {
-                setTimeout(() => {
-                  profileSub.close()
-                  resolve()
-                }, 1000)
-              },
-            },
-          )
-        })
-
-        await profilesPromise
-      }
+      await Promise.all(profilePromises)
 
       // Sort tasks by creation time (newest first)
-      taskEvents.sort((a, b) => b.event.created_at - a.event.created_at)
+      tasksWithProfile.sort((a, b) => (b.event.created_at || 0) - (a.event.created_at || 0))
 
-      setTasks(taskEvents)
-
-      // Close all connections
-      pool.close(RELAYS)
+      setTasks(tasksWithProfile)
     } catch (error) {
-      console.error("Error fetching tasks:", error)
-      setError("Failed to fetch tasks. Please try again later.")
+      console.error("Error loading tasks:", error)
+      setError("Failed to load tasks. Please try again later.")
     } finally {
       setLoading(false)
     }
   }
 
   // Function to extract image URL from tags
-  function getImageUrl(task: TaskEvent): string | null {
-    const imageTag = task.tags.find((tag) => tag[0] === "image" || tag[0] === "img")
-    if (imageTag && imageTag.length > 1) {
-      return imageTag[1]
-    }
+  function getImageUrl(event: NDKEvent): string | null {
+    const imageUrl = getTagValue(event, 'image') || getTagValue(event, 'img')
+    if (imageUrl) return imageUrl
 
     // Also check for image URLs in content
     try {
-      const contentObj = JSON.parse(task.content)
+      const contentObj = JSON.parse(event.content)
       if (contentObj.image) return contentObj.image
       if (contentObj.img) return contentObj.img
     } catch (e) {
@@ -169,16 +80,18 @@ export default function AvailableTasks() {
   }
 
   // Function to get task title
-  function getTaskTitle(task: TaskEvent): string {
+  function getTaskTitle(event: NDKEvent): string {
     // Check for title in tags
-    const titleTag = task.tags.find((tag) => tag[0] === "title" || tag[0] === "name")
-    if (titleTag && titleTag.length > 1) {
-      return titleTag[1]
-    }
+    const title = getTagValue(event, 'title') || getTagValue(event, 'name')
+    if (title) return title
+
+    // Check for description tag
+    const description = getTagValue(event, 'description') || getTagValue(event, 'desc')
+    if (description && description.length < 50) return description
 
     // Check for title in content
     try {
-      const contentObj = JSON.parse(task.content)
+      const contentObj = JSON.parse(event.content)
       if (contentObj.title) return contentObj.title
       if (contentObj.name) return contentObj.name
     } catch (e) {
@@ -186,31 +99,29 @@ export default function AvailableTasks() {
     }
 
     // If content is short, use it as title
-    if (task.content && task.content.length < 50) {
-      return task.content
+    if (event.content && event.content.length < 50) {
+      return event.content
     }
 
     // Fallback to task ID
-    return `Task ${task.id.substring(0, 8)}...`
+    return `Task ${event.id.substring(0, 8)}...`
   }
 
   // Function to get task description
-  function getTaskDescription(task: TaskEvent): string {
+  function getTaskDescription(event: NDKEvent): string {
     // Check for description in tags
-    const descTag = task.tags.find((tag) => tag[0] === "description" || tag[0] === "desc")
-    if (descTag && descTag.length > 1) {
-      return descTag[1]
-    }
+    const description = getTagValue(event, 'description') || getTagValue(event, 'desc')
+    if (description) return description
 
     // Check for description in content
     try {
-      const contentObj = JSON.parse(task.content)
+      const contentObj = JSON.parse(event.content)
       if (contentObj.description) return contentObj.description
       if (contentObj.desc) return contentObj.desc
     } catch (e) {
       // If content is not JSON, use it as description
-      if (task.content) {
-        return task.content.length > 150 ? `${task.content.substring(0, 147)}...` : task.content
+      if (event.content) {
+        return event.content.length > 150 ? `${event.content.substring(0, 147)}...` : event.content
       }
     }
 
@@ -230,7 +141,7 @@ export default function AvailableTasks() {
     return (
       <div className="text-center py-12">
         <p className="text-red-500">{error}</p>
-        <Button onClick={fetchTasks} className="mt-4 bg-[#2c2c2c] hover:bg-[#1e1e1e]">
+        <Button onClick={loadTasks} className="mt-4 bg-[#2c2c2c] hover:bg-[#1e1e1e]">
           Try Again
         </Button>
       </div>
@@ -241,7 +152,7 @@ export default function AvailableTasks() {
     return (
       <div className="text-center py-12">
         <p className="text-[#757575]">No tasks available at the moment.</p>
-        <Button onClick={fetchTasks} className="mt-4 bg-[#2c2c2c] hover:bg-[#1e1e1e]">
+        <Button onClick={loadTasks} className="mt-4 bg-[#2c2c2c] hover:bg-[#1e1e1e]">
           Refresh
         </Button>
       </div>
@@ -277,10 +188,10 @@ export default function AvailableTasks() {
                 <p className="text-sm text-[#757575] mb-4">{description}</p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    {task.profile?.picture ? (
+                    {task.profile?.profile?.picture ? (
                       <Image
-                        src={task.profile.picture || "/placeholder.svg"}
-                        alt={task.profile.name || "Creator"}
+                        src={task.profile.profile.picture || "/placeholder.svg"}
+                        alt={task.profile.profile.name || "Creator"}
                         width={24}
                         height={24}
                         className="rounded-full mr-2"
@@ -293,16 +204,18 @@ export default function AvailableTasks() {
                       <div className="w-6 h-6 rounded-full bg-[#e3e3e3] mr-2"></div>
                     )}
                     <span className="text-xs text-[#757575]">
-                      {task.profile?.name || `${task.event.pubkey.substring(0, 8)}...`}
+                      {task.profile?.profile?.name || `${task.event.author.pubkey.substring(0, 8)}...`}
                     </span>
                   </div>
                   <span className="text-xs text-[#757575]">
-                    {new Date(task.event.created_at * 1000).toLocaleDateString()}
+                    {new Date((task.event.created_at || 0) * 1000).toLocaleDateString()}
                   </span>
                 </div>
               </div>
               <div className="flex justify-end p-2 bg-[#f5f5f5]">
-                <Button className="bg-[#2c2c2c] hover:bg-[#1e1e1e]">Bid Task</Button>
+                <Link href={`/task/${task.event.id}`}>
+                  <Button className="bg-[#2c2c2c] hover:bg-[#1e1e1e]">Bid Task</Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
