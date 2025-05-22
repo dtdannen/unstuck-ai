@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NWC Invoice Tester</title>
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        body.light-mode {
+            background-color: #ffffff;
+            color: #333333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            color: #b0b0b0;
+        }
+        body.light-mode label {
+            color: #555555;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        input {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+        body.light-mode input {
+            background-color: #ffffff;
+            color: #333333;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #4a4a4a;
+            cursor: not-allowed;
+        }
+        body.light-mode button:disabled {
+            background-color: #6c757d;
+        }
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        body.light-mode .theme-toggle {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .theme-toggle:hover {
+            background-color: #444;
+        }
+        body.light-mode .theme-toggle:hover {
+            background-color: #e9ecef;
+        }
+        .invoice-section {
+            border: 1px solid #444;
+            background-color: #2d2d2d;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        body.light-mode .invoice-section {
+            border: 1px solid #ddd;
+            background-color: #ffffff;
+        }
+        .qr-code {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            display: inline-block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.pending {
+            background-color: #4a3800;
+            border: 1px solid #6b5300;
+            color: #ffeb99;
+        }
+        body.light-mode .status.pending {
+            background-color: #fff3cd;
+            border: 1px solid #ffecb5;
+            color: #856404;
+        }
+        .status.paid {
+            background-color: #1e4d2b;
+            border: 1px solid #2d7037;
+            color: #a3d9a5;
+        }
+        body.light-mode .status.paid {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .invoice-details {
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            background-color: #333;
+            color: #e0e0e0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        body.light-mode .invoice-details {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        h1 {
+            color: #ffffff;
+        }
+        body.light-mode h1 {
+            color: #333333;
+        }
+        h3 {
+            color: #b0b0b0;
+        }
+        body.light-mode h3 {
+            color: #555555;
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 Light Mode</button>
+    <div class="container">
+        <h1>NWC Invoice Tester</h1>
+        
+        <div class="form-group">
+            <label for="nwcUrl">NWC Connection String:</label>
+            <input type="text" id="nwcUrl" placeholder="nostr+walletconnect://..." />
+            <button onclick="connectNWC()">Connect NWC</button>
+        </div>
+
+        <div class="form-group">
+            <label for="amount">Amount (sats):</label>
+            <input type="number" id="amount" value="1" min="1" />
+            <label for="description">Description:</label>
+            <input type="text" id="description" value="Test Invoice" />
+            <button id="createInvoiceBtn" onclick="createInvoice()" disabled>Create Invoice</button>
+        </div>
+
+        <div id="invoiceSection" class="invoice-section">
+            <h3>Invoice Created</h3>
+            <div id="qrCode" class="qr-code"></div>
+            <div id="invoiceStatus" class="status pending">Status: Pending Payment</div>
+            <div id="invoiceDetails" class="invoice-details"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { nwc } from "https://esm.sh/@getalby/sdk@5.0.0";
+
+        let nwcClient = null;
+        let currentInvoice = null;
+        let pollInterval = null;
+
+        window.toggleTheme = () => {
+            const body = document.body;
+            const toggleButton = document.querySelector('.theme-toggle');
+            
+            if (body.classList.contains('light-mode')) {
+                body.classList.remove('light-mode');
+                toggleButton.textContent = '🌙 Light Mode';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.classList.add('light-mode');
+                toggleButton.textContent = '🌑 Dark Mode';
+                localStorage.setItem('theme', 'light');
+            }
+        };
+
+        // Load saved theme preference (default to dark)
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+            document.querySelector('.theme-toggle').textContent = '🌑 Dark Mode';
+        }
+
+        window.connectNWC = async () => {
+            try {
+                const nwcUrl = document.getElementById('nwcUrl').value;
+                
+                if (!nwcUrl) {
+                    alert("Please enter an NWC connection string");
+                    return;
+                }
+                
+                nwcClient = new nwc.NWCClient({
+                    nostrWalletConnectUrl: nwcUrl,
+                });
+                
+                const info = await nwcClient.getInfo();
+                alert("Connected successfully! Alias: " + info.alias);
+                
+                document.getElementById('createInvoiceBtn').disabled = false;
+            } catch (error) {
+                console.error(error);
+                alert("Connection failed: " + error.message);
+            }
+        };
+
+        window.createInvoice = async () => {
+            if (!nwcClient) {
+                alert("Please connect NWC first");
+                return;
+            }
+
+            try {
+                const amount = parseInt(document.getElementById('amount').value) * 1000; // convert to millisats
+                const description = document.getElementById('description').value;
+
+                const response = await nwcClient.makeInvoice({
+                    amount,
+                    description
+                });
+
+                currentInvoice = response;
+                
+                // Show invoice section
+                document.getElementById('invoiceSection').style.display = 'block';
+                
+                // Generate QR code
+                const qrCodeElement = document.getElementById('qrCode');
+                qrCodeElement.innerHTML = '';
+                
+                if (window.QRCode) {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        await window.QRCode.toCanvas(canvas, response.invoice, { width: 300 });
+                        qrCodeElement.appendChild(canvas);
+                    } catch (error) {
+                        console.error('QR code generation failed:', error);
+                        qrCodeElement.innerHTML = `<p>QR Code generation failed. Invoice: <br><code style="word-break: break-all; font-size: 10px;">${response.invoice}</code></p>`;
+                    }
+                } else {
+                    qrCodeElement.innerHTML = `<p>QR Code library not loaded. Invoice: <br><code style="word-break: break-all; font-size: 10px;">${response.invoice}</code></p>`;
+                }
+                
+                // Show invoice details
+                const invoiceDetails = document.getElementById('invoiceDetails');
+                invoiceDetails.innerHTML = `
+                    <strong>Invoice:</strong> ${response.invoice}<br>
+                    <strong>Payment Hash:</strong> ${response.payment_hash}<br>
+                    <strong>Amount:</strong> ${amount / 1000} sats<br>
+                    <strong>Description:</strong> ${description}
+                `;
+
+                // Start polling for payment status
+                startPolling();
+
+            } catch (error) {
+                console.error(error);
+                alert("Failed to create invoice: " + error.message);
+            }
+        };
+
+        function startPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+
+            console.log("Starting polling for payment hash:", currentInvoice.payment_hash);
+            
+            pollInterval = setInterval(async () => {
+                try {
+                    console.log("Checking invoice status...");
+                    const response = await nwcClient.lookupInvoice({
+                        payment_hash: currentInvoice.payment_hash
+                    });
+
+                    console.log("Invoice lookup response:", response);
+                    const statusElement = document.getElementById('invoiceStatus');
+                    
+                    if (response.state === "settled") {
+                        console.log("Invoice is PAID!");
+                        statusElement.textContent = "Status: PAID ✅";
+                        statusElement.className = "status paid";
+                        
+                        // Show success popup
+                        alert("🎉 Invoice has been paid!");
+                        
+                        // Stop polling
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                    } else {
+                        console.log("Invoice still pending...");
+                        statusElement.textContent = "Status: Pending Payment ⏳";
+                        statusElement.className = "status pending";
+                    }
+                    
+                } catch (error) {
+                    console.error("Error checking invoice status:", error);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+            if (nwcClient) {
+                nwcClient.close();
+            }
+        });
+    </script>
+</body>
+</html>
