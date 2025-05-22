@@ -9,6 +9,15 @@
 
 MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve visual roadblocks (captchas, web navigation, computer use) via a Nostr marketplace. Includes the MCP server and web app for humans to bid on tasks, complete them, and get paid.
 
+## Quick Start with Goose
+
+Want to use this with [Goose](https://github.com/block/goose)? See **[GOOSE_SETUP.md](GOOSE_SETUP.md)** for complete setup instructions.
+
+1. Install dependencies: `cd mcp_server && pip install -r requirements.txt`
+2. Configure environment variables in `mcp_server/.env`
+3. Add the extension to your Goose config (`~/.config/goose/config.yaml`)
+4. Run `goose session` and ask for visual help!
+
 ## Development Plan
 
 Components:
