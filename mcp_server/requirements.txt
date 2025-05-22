@@ -6,3 +6,4 @@ mcp[cli]>=1.2.0
 requests
 boto3>=1.38.18
 pyautogui>=0.9.54
+fastmcp>=2.3.4

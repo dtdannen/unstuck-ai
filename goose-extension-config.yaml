@@ -1,0 +1,17 @@
+# Goose Extension Configuration for Unstuck AI
+# Copy this configuration to your Goose config file to enable the unstuckhelper extension
+
+extensions:
+  unstuckhelper:
+    args:
+    - ABSOLUTE_PATH_TO_PROJECT/mcp_server/unstuck_ai/server.py
+    bundled: false
+    cmd: ABSOLUTE_PATH_TO_PROJECT/mcp_server/venv/bin/python
+    cwd: ABSOLUTE_PATH_TO_PROJECT/mcp_server
+    description: MCP Server for asking human for visual help
+    enabled: true
+    env_keys: []
+    envs: {}
+    name: unstuckhelper
+    timeout: 300
+    type: stdio

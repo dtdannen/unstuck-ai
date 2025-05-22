@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Unstuck - Earn Sats & Help Goose Soar!",
   description: "Complete tasks and earn Sats while helping Goose soar.",
-    generator: 'v0.dev'
+  generator: "v0.dev"
 }
 
 export default function RootLayout({

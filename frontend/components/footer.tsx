@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="container">
         <div className="flex flex-col space-y-10">
           <div className="flex items-center">
-            <Image src="/unstuckgoose.png" alt="Unstuck Logo" width={150} height={50} className="h-auto" />
+            <Image src="/unstuckgoose.png" alt="Unstuck Logo" width={150} height={50} />
           </div>
 
           <div className="flex flex-wrap gap-x-12 gap-y-8">
