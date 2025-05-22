@@ -1,8 +1,14 @@
+"use client"
+
 import Link from "next/link"
 import Image from "next/image"
 import NostrLoginButton from "@/components/nostr-login-button"
+import { NWCLogin } from "@/components/nwc-login"
+import { useNWC } from "@/lib/nwc-context"
 
 export default function Header() {
+  const { setNwcClient } = useNWC()
+
   return (
     <header className="border-b bg-white">
       <div className="container flex items-center justify-between py-4">
@@ -17,7 +23,10 @@ export default function Header() {
             About Us
           </Link>
           <div className="h-6 w-px bg-[#2c2c2c] mx-2"></div>
-          <NostrLoginButton />
+          <div className="flex items-center gap-4">
+            <NWCLogin onNWCClientChange={setNwcClient} />
+            <NostrLoginButton />
+          </div>
         </nav>
       </div>
     </header>

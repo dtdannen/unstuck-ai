@@ -2,13 +2,13 @@
 
 import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, Check } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { ndk, ensureConnected, useNostrUser, createSignedEvent, getTagValue } from "@/lib/nostr"
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
-import { SimplePayment } from "@/components/simple-payment"
-import { InvoiceData, PaymentResult } from "@/hooks/use-bitcoin-connect"
+import { NWCPayment } from "@/components/nwc-payment"
+import { useNWC } from "@/lib/nwc-context"
 
 interface TaskPageProps {
   params: Promise<{
@@ -23,7 +23,9 @@ export default function TaskPage({ params }: TaskPageProps) {
   const [submitting, setSubmitting] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [bidAmount, setBidAmount] = useState(100)
+  const [bidSubmitted, setBidSubmitted] = useState(false)
   const { user } = useNostrUser()
+  const { nwcClient } = useNWC()
   const { id: taskId } = use(params)
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function TaskPage({ params }: TaskPageProps) {
     setShowPayment(true)
   }
 
-  async function handleInvoiceGenerated(invoice: InvoiceData) {
+  async function handleInvoiceGenerated(invoice: any) {
     if (!user || !task) return
 
     try {
@@ -73,7 +75,7 @@ export default function TaskPage({ params }: TaskPageProps) {
         ["e", task.id], // Reference to the original task
         ["p", task.author.pubkey], // Tag the task creator
         ["amount", bidAmount.toString()], // Bid amount in sats
-        ["bolt11", invoice.paymentRequest] // Real lightning invoice
+        ["bolt11", invoice.invoice] // Real lightning invoice (NWC format)
       ]
       
       const bidEvent = await createSignedEvent(
@@ -84,7 +86,8 @@ export default function TaskPage({ params }: TaskPageProps) {
       
       if (bidEvent) {
         await bidEvent.publish()
-        console.log("Bid submitted successfully with invoice:", invoice.paymentRequest.substring(0, 50) + "...")
+        console.log("Bid submitted successfully with invoice:", invoice.invoice.substring(0, 50) + "...")
+        // Don't set bidSubmitted here - wait for payment to complete
       } else {
         alert("Failed to submit bid")
       }
@@ -96,10 +99,11 @@ export default function TaskPage({ params }: TaskPageProps) {
     }
   }
 
-  async function handlePaymentSuccess(result: PaymentResult) {
-    console.log("Payment successful:", result)
-    alert("Payment completed! Your bid has been submitted successfully.")
+  async function handlePaymentSuccess() {
+    console.log("Payment successful!")
+    setBidSubmitted(true)
     setShowPayment(false)
+    // Navigation to work page will be handled by the NWCPayment component modal
   }
 
   if (loading) {
@@ -191,13 +195,38 @@ export default function TaskPage({ params }: TaskPageProps) {
 
           <div className="space-y-4">
             {user ? (
-              !showPayment ? (
+              bidSubmitted ? (
+                <div className="border rounded-lg p-4 bg-green-50 border-green-200">
+                  <div className="flex items-center gap-2 text-green-800 mb-2">
+                    <Check className="h-5 w-5" />
+                    <h3 className="font-semibold">Bid Submitted Successfully!</h3>
+                  </div>
+                  <p className="text-green-700 text-sm">
+                    Your payment request for {bidAmount} sats has been sent. The task creator will be notified and can accept your bid.
+                  </p>
+                  <div className="mt-3">
+                    <Link href="/available-tasks">
+                      <Button variant="outline" size="sm" className="border-green-300 text-green-800 hover:bg-green-100">
+                        View More Tasks
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ) : !showPayment ? (
                 <div className="flex gap-4">
                   <Button 
                     onClick={handleBidClick}
                     className="bg-[#2c2c2c] hover:bg-[#1e1e1e]"
+                    disabled={submitting}
                   >
-                    Submit Bid
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Bid"
+                    )}
                   </Button>
                   <Button variant="outline" className="border-[#2c2c2c] text-[#2c2c2c] hover:bg-[#f5f5f5]">
                     Save for Later
@@ -206,9 +235,11 @@ export default function TaskPage({ params }: TaskPageProps) {
               ) : (
                 <div>
                   <h3 className="font-semibold mb-4">Generate Invoice & Submit Bid</h3>
-                  <SimplePayment
+                  <NWCPayment
+                    nwcClient={nwcClient}
                     defaultAmount={bidAmount}
                     memo={`Bid for task: ${task.id.substring(0, 16)}...`}
+                    taskId={taskId}
                     onInvoiceGenerated={handleInvoiceGenerated}
                     onPaymentSuccess={handlePaymentSuccess}
                     className="mx-auto"

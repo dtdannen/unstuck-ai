@@ -105,10 +105,11 @@ and then you can try using it with a propmt to goose like:
 
 This is a robust way to take screenshots:
 
-timestamp=$(date +"%Y%m%d_%H%M%S")
-output_path="/Users/dustin/screenshot_$timestamp.png"
-cp /tmp/screenshot.png "$output_path"
-echo "Screenshot saved at: $output_path"
+screencapture -x /Users/dustin/screenshot_$(date +"%Y%m%d_%H%M%S").png
+
+This is a robust way to check for the most recent screenshot
+
+ls -la /Users/dustin/screenshot_*.png | tail -1
 
 Make sure the file exists before calling the unstuck ai tool
 ```

@@ -1,6 +1,6 @@
 "use client";
 
-import NDK, { NDKEvent, NDKUser, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk';
+import NDK, { NDKEvent, NDKUser, NDKFilter, NDKSubscription, NDKNip07Signer } from '@nostr-dev-kit/ndk';
 import { useState, useEffect } from 'react';
 
 // Define the relays to use
@@ -67,42 +67,36 @@ export async function createSignedEvent(kind: number, content: string, tags: str
   // Check if NIP-07 extension is available
   if (!window.nostr) {
     console.error('NDK: No NIP-07 extension found');
-    return null;
+    throw new Error('Nostr extension (Alby, nos2x, etc.) not found! Please install a Nostr extension.');
   }
   
   try {
-    // Get the current user via NIP-07
-    const signer = ndk.signer;
-    if (!signer) {
-      const pubkey = await window.nostr.getPublicKey();
-      const user = ndk.getUser({ pubkey });
-      if (!user) {
-        throw new Error('NDK: Failed to get user');
-      }
-      
-      // Create the event
-      const event = new NDKEvent(ndk);
-      event.kind = kind;
-      event.content = content;
-      event.tags = tags;
-      
-      // Sign the event with NIP-07
-      await event.sign();
-      
-      return event;
-    } else {
-      // If we already have a signer
-      const event = new NDKEvent(ndk);
-      event.kind = kind;
-      event.content = content;
-      event.tags = tags;
-      
-      await event.sign();
-      return event;
+    // Create and configure a NIP-07 signer
+    const signer = new NDKNip07Signer();
+    
+    // Set the signer on the NDK instance
+    ndk.signer = signer;
+    
+    // Get the current user via the signer
+    const user = await signer.user();
+    if (!user) {
+      throw new Error('NDK: Failed to get user from signer');
     }
+    
+    // Create the event
+    const event = new NDKEvent(ndk);
+    event.kind = kind;
+    event.content = content;
+    event.tags = tags;
+    event.author = user;
+    
+    // Sign the event
+    await event.sign(signer);
+    
+    return event;
   } catch (e) {
     console.error('NDK: Failed to create and sign event', e);
-    return null;
+    throw e;
   }
 }
 
@@ -161,8 +155,13 @@ export function useNostrUser() {
       try {
         // Check localStorage first
         const storedPubkey = localStorage.getItem("nostrPubkey");
-        if (storedPubkey) {
+        if (storedPubkey && window.nostr) {
           await ensureConnected();
+          
+          // Create and configure a NIP-07 signer
+          const signer = new NDKNip07Signer();
+          ndk.signer = signer;
+          
           const ndkUser = ndk.getUser({ pubkey: storedPubkey });
           
           // Try to fetch profile
@@ -192,10 +191,18 @@ export function useNostrUser() {
         return null;
       }
       
-      const pubkey = await window.nostr.getPublicKey();
       await ensureConnected();
       
-      const ndkUser = ndk.getUser({ pubkey });
+      // Create and configure a NIP-07 signer
+      const signer = new NDKNip07Signer();
+      ndk.signer = signer;
+      
+      // Get user from signer
+      const ndkUser = await signer.user();
+      if (!ndkUser) {
+        throw new Error('Failed to get user from signer');
+      }
+      
       try {
         await ndkUser.fetchProfile();
       } catch (e) {
@@ -203,7 +210,7 @@ export function useNostrUser() {
       }
       
       // Store pubkey in localStorage
-      localStorage.setItem("nostrPubkey", pubkey);
+      localStorage.setItem("nostrPubkey", ndkUser.pubkey);
       
       setUser(ndkUser);
       return ndkUser;
