@@ -8,6 +8,7 @@ import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import os
+import signal
 
 
 class GooseSession:
@@ -16,19 +17,35 @@ class GooseSession:
         self.input_queue = []
         self.output_buffer = []
         self.running = False
+        self.last_output_time = time.time()
 
     def start_session(self):
         """Start a Goose session with Computer Controller enabled"""
-        if self.running:
+        if self.running and self.process and self.process.poll() is None:
             return "Session already running"
 
         try:
             # Set display for GUI applications
             os.environ["DISPLAY"] = ":1"
 
-            # Start goose session with built-in extensions
+            # Ensure config directory exists
+            config_dir = "/home/goose/.config/goose"
+            os.makedirs(config_dir, exist_ok=True)
+
+            # Set API key in environment for this session
+            if "OPENAI_API_KEY" in os.environ:
+                print(f"🔑 Using OpenAI API key: {os.environ['OPENAI_API_KEY'][:8]}...")
+            else:
+                return "ERROR: OPENAI_API_KEY not set in environment"
+
+            # Start goose session with the correct command
+            # The provider/model come from the config file we created in the Dockerfile
+            cmd = ["goose", "session", "start"]
+
+            print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
+
             self.process = subprocess.Popen(
-                ["goose", "session", "--with-builtin", "developer,computercontroller"],
+                cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -36,67 +53,147 @@ class GooseSession:
                 bufsize=1,
                 universal_newlines=True,
                 cwd="/home/goose/workspace",
+                env=os.environ.copy(),
+                preexec_fn=os.setsid,  # Create new process group
             )
-
-            self.running = True
 
             # Start output reader thread
             threading.Thread(target=self._read_output, daemon=True).start()
 
-            # Give it time to start
+            # Wait a bit and check if process is still alive
             time.sleep(3)
 
-            return "Goose session started with Computer Controller extension"
+            if self.process.poll() is not None:
+                # Process has already exited
+                return_code = self.process.returncode
+                error_output = "".join(self.output_buffer)
+                return f"ERROR: Goose process exited with code {return_code}. Output: {error_output}"
 
+            self.running = True
+            self.last_output_time = time.time()
+
+            # Give it more time to fully initialize
+            time.sleep(2)
+
+            return (
+                "Goose session started successfully with Computer Controller extension"
+            )
+
+        except FileNotFoundError:
+            return (
+                "ERROR: 'goose' command not found. Please ensure goose-ai is installed."
+            )
         except Exception as e:
-            return f"Error starting Goose: {str(e)}"
+            return f"ERROR starting Goose: {str(e)}"
 
     def send_command(self, command):
         """Send a command to Goose"""
         if not self.running or not self.process:
             return "No active Goose session. Please start session first."
 
+        # Check if process is still alive
+        if self.process.poll() is not None:
+            self.running = False
+            return_code = self.process.returncode
+            error_output = "".join(self.output_buffer[-10:])  # Last 10 lines
+            return f"Goose session died (exit code: {return_code}). Recent output: {error_output}. Please restart session."
+
         try:
+            print(f"📝 Sending command to Goose: {command}")
             self.process.stdin.write(command + "\n")
             self.process.stdin.flush()
 
-            # Wait a bit for response
-            time.sleep(1)
+            # Wait for response with timeout
+            max_wait = 30  # 30 seconds timeout
+            start_time = time.time()
+            initial_buffer_size = len(self.output_buffer)
+
+            while time.time() - start_time < max_wait:
+                time.sleep(0.5)
+                # Check if we got new output
+                if len(self.output_buffer) > initial_buffer_size:
+                    # Wait a bit more for complete response
+                    time.sleep(2)
+                    break
+
+                # Check if process died
+                if self.process.poll() is not None:
+                    self.running = False
+                    return f"Goose process died while processing command. Exit code: {self.process.returncode}"
 
             # Get recent output
             recent_output = []
-            while self.output_buffer:
-                recent_output.append(self.output_buffer.pop(0))
+            lines_to_get = min(20, len(self.output_buffer))
+            if lines_to_get > 0:
+                recent_output = self.output_buffer[-lines_to_get:]
 
-            return (
-                "\n".join(recent_output) if recent_output else "Command sent to Goose"
+            response = (
+                "\n".join(recent_output)
+                if recent_output
+                else "Command sent, but no response received yet."
             )
+            print(
+                f"📤 Goose response: {response[:200]}..."
+            )  # First 200 chars for logging
 
+            return response
+
+        except BrokenPipeError:
+            self.running = False
+            return "Connection to Goose lost. Please restart session."
         except Exception as e:
             return f"Error sending command: {str(e)}"
 
     def _read_output(self):
         """Read output from Goose process"""
-        while self.running and self.process:
+        while self.process and self.process.poll() is None:
             try:
                 line = self.process.stdout.readline()
                 if line:
-                    self.output_buffer.append(line.strip())
-                    # Keep only last 50 lines
-                    if len(self.output_buffer) > 50:
-                        self.output_buffer.pop(0)
+                    line = line.strip()
+                    print(f"📥 Goose output: {line}")  # Debug logging
+                    self.output_buffer.append(line)
+                    self.last_output_time = time.time()
+
+                    # Keep only last 100 lines to prevent memory issues
+                    if len(self.output_buffer) > 100:
+                        self.output_buffer = self.output_buffer[-50:]
                 else:
                     time.sleep(0.1)
-            except:
+            except Exception as e:
+                print(f"❌ Error reading output: {e}")
                 break
+
+        print("📊 Output reader thread ended")
 
     def get_status(self):
         """Get session status"""
-        if self.running and self.process and self.process.poll() is None:
+        if self.process is None:
+            return "Not started"
+        elif self.process.poll() is None and self.running:
             return "Running"
         else:
             self.running = False
-            return "Stopped"
+            return f"Stopped (exit code: {self.process.returncode if self.process else 'unknown'})"
+
+    def stop_session(self):
+        """Stop the Goose session"""
+        if self.process:
+            try:
+                # Try graceful shutdown first
+                os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+                time.sleep(2)
+
+                # Force kill if still alive
+                if self.process.poll() is None:
+                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
+
+            except:
+                pass
+
+        self.running = False
+        self.process = None
+        return "Session stopped"
 
 
 # Global Goose session
@@ -110,6 +207,27 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
             self.serve_chat_interface()
         elif self.path == "/status":
             self.serve_json({"status": goose_session.get_status()})
+        elif self.path == "/debug":
+            # Debug endpoint to check what's happening
+            debug_info = {
+                "running": goose_session.running,
+                "process_alive": goose_session.process is not None
+                and goose_session.process.poll() is None,
+                "recent_output": (
+                    goose_session.output_buffer[-10:]
+                    if goose_session.output_buffer
+                    else []
+                ),
+                "env_vars": {
+                    "DISPLAY": os.environ.get("DISPLAY"),
+                    "OPENAI_API_KEY": (
+                        "SET" if os.environ.get("OPENAI_API_KEY") else "NOT SET"
+                    ),
+                    "HOME": os.environ.get("HOME"),
+                    "PWD": os.getcwd(),
+                },
+            }
+            self.serve_json(debug_info)
         else:
             self.send_error(404)
 
