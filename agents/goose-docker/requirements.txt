@@ -4,3 +4,5 @@ goose-ai
 requests
 beautifulsoup4
 pillow
+pyautogui
+python-xlib

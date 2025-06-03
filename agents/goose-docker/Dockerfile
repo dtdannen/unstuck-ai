@@ -4,7 +4,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies with proper X11 and desktop components
+## Install system dependencies with proper X11, desktop components, and automation tools
 RUN apt-get update && apt-get install -y \
     xfce4 xfce4-goodies \
     xfce4-terminal \
@@ -17,6 +17,16 @@ RUN apt-get update && apt-get install -y \
     dbus-x11 \
     sudo \
     procps \
+    # Screenshot and automation tools
+    scrot \
+    imagemagick \
+    gnome-screenshot \
+    python3-xlib \
+    python3-tk \
+    python3-dev \
+    # Additional tools for PyAutoGUI
+    python3-pil \
+    python3-pil.imagetk \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,6 +40,23 @@ RUN echo 'goose ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 USER goose
 WORKDIR /home/goose
+
+# Create Goose config directory
+RUN mkdir -p ~/.config/goose
+
+# Create Goose configuration with Computer Controller enabled
+RUN echo 'provider: openai' > ~/.config/goose/config.yaml && \
+    echo 'model: gpt-4o' >> ~/.config/goose/config.yaml && \
+    echo 'extensions:' >> ~/.config/goose/config.yaml && \
+    echo '  computercontroller:' >> ~/.config/goose/config.yaml && \
+    echo '    enabled: true' >> ~/.config/goose/config.yaml && \
+    echo '    name: computercontroller' >> ~/.config/goose/config.yaml && \
+    echo '    type: builtin' >> ~/.config/goose/config.yaml && \
+    echo '    timeout: 300' >> ~/.config/goose/config.yaml && \
+    echo '  developer:' >> ~/.config/goose/config.yaml && \
+    echo '    enabled: true' >> ~/.config/goose/config.yaml && \
+    echo '    name: developer' >> ~/.config/goose/config.yaml && \
+    echo '    type: builtin' >> ~/.config/goose/config.yaml
 
 # Set up VNC directories
 RUN mkdir -p ~/.vnc ~/.config/xfce4

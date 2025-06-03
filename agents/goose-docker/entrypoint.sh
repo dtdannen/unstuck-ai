@@ -50,6 +50,16 @@ NOVNC_PID=$!
 
 sleep 3
 
+# test automation works
+echo "🧪 Testing automation capabilities..."
+python3 /home/goose/scripts/test_automation.py
+
+if [ $? -eq 0 ]; then
+    echo "✅ Automation test passed!"
+else
+    echo "⚠️  Automation test had issues, but continuing..."
+fi
+
 # Start external Goose API
 echo "🦆 Starting external Goose API..."
 python3 /home/goose/scripts/goose_api.py &

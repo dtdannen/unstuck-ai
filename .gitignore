@@ -20,3 +20,4 @@ docs/final_presentation_and_QnA.mp4
 .DS_Store
 
 agents/cua/trajectories
+agents/goose-docker/workspace

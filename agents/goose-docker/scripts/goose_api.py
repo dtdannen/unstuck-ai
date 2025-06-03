@@ -18,7 +18,7 @@ class GooseSession:
         self.running = False
 
     def start_session(self):
-        """Start a Goose session"""
+        """Start a Goose session with Computer Controller enabled"""
         if self.running:
             return "Session already running"
 
@@ -26,9 +26,9 @@ class GooseSession:
             # Set display for GUI applications
             os.environ["DISPLAY"] = ":1"
 
-            # Start goose session
+            # Start goose session with built-in extensions
             self.process = subprocess.Popen(
-                ["goose", "session", "start"],
+                ["goose", "session", "--with-builtin", "developer,computercontroller"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -44,9 +44,9 @@ class GooseSession:
             threading.Thread(target=self._read_output, daemon=True).start()
 
             # Give it time to start
-            time.sleep(2)
+            time.sleep(3)
 
-            return "Goose session started successfully"
+            return "Goose session started with Computer Controller extension"
 
         except Exception as e:
             return f"Error starting Goose: {str(e)}"
