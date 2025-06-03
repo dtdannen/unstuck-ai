@@ -1,0 +1,20 @@
+{
+    "mcpServers": {
+        "cua-agent": {
+            "command": "cua-mcp-server",
+            "args": [],
+            "env": {
+                "CUA_AGENT_LOOP": "OPENAI",
+                "CUA_MODEL_PROVIDER": "OPENAI",
+                "CUA_MODEL_NAME": "gpt-4o",
+                "OPENAI_API_KEY": "your_openai_api_key_here"
+            }
+        },
+        "simple-search": {
+            "command": "node",
+            "args": [
+                "./mcp-servers/simple-search/index.js"
+            ]
+        }
+    }
+}

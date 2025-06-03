@@ -1,0 +1,6 @@
+# /agents/goose-docker/requirements.txt
+
+goose-ai
+requests
+beautifulsoup4
+pillow

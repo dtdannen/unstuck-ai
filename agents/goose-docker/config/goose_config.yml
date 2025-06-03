@@ -1,0 +1,22 @@
+# /agents/goose-docker/config/goose_config.yaml
+
+default_model:
+  provider: ${GOOSE_MODEL_PROVIDER}
+  processor: ${GOOSE_MODEL_NAME}
+
+mcp:
+  enabled: true
+  servers:
+    - name: web-search
+      command: ["node", "/home/goose/mcp-servers/web-search/index.js"]
+    - name: computer-control
+      command: ["goose-computer-mcp"]
+
+computer_control:
+  enabled: true
+  screenshot_tool: true
+  mouse_control: true
+  keyboard_control: true
+
+workspace:
+  default_path: "/home/goose/workspace"

@@ -1,0 +1,13 @@
+{
+    "name": "simple-search-mcp",
+    "version": "1.0.0",
+    "description": "Simple search MCP server for C/ua",
+    "main": "index.js",
+    "type": "module",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^0.5.0"
+    },
+    "scripts": {
+        "start": "node index.js"
+    }
+}

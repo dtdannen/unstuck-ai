@@ -1,0 +1,22 @@
+# /agents/cua/requirements.txt
+
+# Core C/ua components
+cua-computer
+cua-agent[all]
+
+# Additional AI frameworks
+goose-ai
+
+# Web interface
+gradio>=4.0.0
+
+# Utilities
+python-dotenv
+pillow
+opencv-python
+pyautogui
+requests
+
+# Development tools
+jupyter
+ipython

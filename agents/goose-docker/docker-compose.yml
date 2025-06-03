@@ -1,0 +1,28 @@
+# /agents/goose-docker/docker-compose.yml
+
+services:
+  goose-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goose-docker-agent
+    
+    ports:
+      - "5901:5901"   # VNC
+      - "6080:6080"   # noVNC (web VNC)
+      - "8888:8888"   # External Goose API
+    
+    volumes:
+      - ./workspace:/home/goose/workspace
+    
+    environment:
+      - DISPLAY=:1
+      - VNC_RESOLUTION=1920x1080
+      - VNC_DEPTH=24
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    
+    stdin_open: true
+    tty: true
+    
+    restart: unless-stopped

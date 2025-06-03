@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+        "web-search": {
+            "command": "node",
+            "args": [
+                "/home/goose/mcp-servers/web-search/index.js"
+            ],
+            "env": {}
+        },
+        "goose-computer": {
+            "command": "goose-mcp-server",
+            "args": [],
+            "env": {
+                "DISPLAY": ":1"
+            }
+        }
+    }
+}
