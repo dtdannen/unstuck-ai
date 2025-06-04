@@ -37,8 +37,8 @@ echo "export GOOSE_DEBUG=1" >> ~/.bashrc
 echo "export GOOSE_SANDBOX_MODE=true" >> ~/.bashrc
 echo "export GOOSE_ALLOW_SUDO=true" >> ~/.bashrc
 echo "export DISABLE_SAFETY_CHECKS=true" >> ~/.bashrc
-echo "export GOOSE_PROVIDER=openai" >> ~/.bashrc
-echo "export GOOSE_MODEL=gpt-4o" >> ~/.bashrc
+echo "export GOOSE_PROVIDER=anthropic" >> ~/.bashrc
+echo "export GOOSE_MODEL=claude-opus-4-20250514" >> ~/.bashrc
 
 # Set for current session too
 export GOOSE_DISABLE_KEYRING=1
@@ -46,16 +46,17 @@ export GOOSE_DEBUG=1
 export GOOSE_SANDBOX_MODE=true
 export GOOSE_ALLOW_SUDO=true
 export DISABLE_SAFETY_CHECKS=true
-export GOOSE_PROVIDER=openai
-export GOOSE_MODEL=gpt-4o
+export GOOSE_PROVIDER=anthropic
+export GOOSE_MODEL=claude-opus-4-20250514
 
-# Copy MCP server configuration to home directory
-echo "📋 Setting up MCP server configuration..."
-if [ -f /home/goose/.config/mcp_servers.json ]; then
-    echo "MCP server config already exists"
+# Check MCP server configuration
+echo "📋 Checking MCP server configuration..."
+# Block's Goose looks for MCP servers in ~/.config/goose/mcp_servers.json
+if [ -f /home/goose/.config/goose/mcp_servers.json ]; then
+    echo "✅ MCP server config found at ~/.config/goose/mcp_servers.json"
+    # Note: Goose should handle environment variable expansion in the JSON file
 else
-    mkdir -p /home/goose/.config
-    cp /home/goose/.config/goose/mcp_servers.json /home/goose/.config/mcp_servers.json 2>/dev/null || echo "Note: mcp_servers.json not found in goose config"
+    echo "❌ Warning: mcp_servers.json not found at ~/.config/goose/mcp_servers.json"
 fi
 
 echo "🔍 Checking goose configuration..."
@@ -71,14 +72,21 @@ echo "🔍 Current goose profiles:"
 cat ~/.config/goose/profiles.yaml
 echo ""
 echo "📋 MCP servers configuration:"
-if [ -f /home/goose/.config/mcp_servers.json ]; then
-    cat /home/goose/.config/mcp_servers.json
+if [ -f /home/goose/.config/goose/mcp_servers.json ]; then
+    echo "Found at ~/.config/goose/mcp_servers.json:"
+    cat /home/goose/.config/goose/mcp_servers.json
 else
-    echo "MCP servers config not found!"
+    echo "MCP servers config not found at ~/.config/goose/mcp_servers.json!"
 fi
 echo ""
 echo "🔍 Checking MCP server files:"
 ls -la /home/goose/mcp_server/ 2>/dev/null || echo "MCP server directory not found"
+echo ""
+echo "🔍 Checking if fastmcp is available:"
+which fastmcp || echo "fastmcp not found in PATH"
+echo ""
+echo "🔍 Checking if goose-mcp-server is available:"
+which goose-mcp-server || echo "goose-mcp-server not found in PATH"
 echo ""
 # Skip outdated test - goose session syntax has changed
 echo ""
@@ -121,13 +129,9 @@ fi
 
 # Skip outdated sudo test - command syntax has changed
 
-# Start unstuck MCP server first (like in local setup)
-echo "🚀 Starting unstuck MCP server..."
-cd /home/goose/mcp_server
-fastmcp run unstuck_ai/server.py:mcp --transport sse &
-MCP_PID=$!
-sleep 5
-echo "✅ Unstuck MCP server started on port 8000"
+# Unstuck MCP server is now configured in mcp_servers.json
+# and will be started automatically by Goose
+echo "✅ Unstuck MCP configured in mcp_servers.json"
 
 # Start external Goose API
 echo "🦆 Starting external Goose API..."
@@ -163,13 +167,7 @@ while true; do
         NOVNC_PID=$!
     fi
     
-    # Check MCP server
-    if ! kill -0 $MCP_PID 2>/dev/null; then
-        echo "⚠️  MCP server died, restarting..."
-        cd /home/goose/mcp_server
-        fastmcp run unstuck_ai/server.py:mcp --transport sse &
-        MCP_PID=$!
-    fi
+    # MCP servers are managed by Goose itself via mcp_servers.json
     
     # Check API
     if ! kill -0 $API_PID 2>/dev/null; then

@@ -48,8 +48,8 @@ RUN mkdir -p ~/.config/goose
 COPY agents/goose-docker/config/goose_config.yaml /home/goose/.config/goose/profiles.yaml
 COPY agents/goose-docker/config/config.yaml /home/goose/.config/goose/config.yaml
 
-# Copy MCP server configuration
-COPY agents/goose-docker/config/mcp_servers.json /home/goose/.config/mcp_servers.json
+# Copy MCP server configuration to where Block's Goose expects it
+COPY agents/goose-docker/config/mcp_servers.json /home/goose/.config/goose/mcp_servers.json
 
 # Set up VNC directories
 RUN mkdir -p ~/.vnc ~/.config/xfce4
