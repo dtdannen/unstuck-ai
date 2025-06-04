@@ -13,6 +13,15 @@ MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve vi
 
 Want to use this with [Goose](https://github.com/block/goose)? See **[GOOSE_SETUP.md](GOOSE_SETUP.md)** for complete setup instructions.
 
+> **⚠️ IMPORTANT: Goose Version Distinction**
+> 
+> There are two different AI assistants named "Goose":
+> - **Block's Goose** (https://github.com/block/goose) - Version 1.0.x+, has MCP support with `--with-remote-extension`
+> - **goose-ai** (PyPI package) - Version 0.9.x, different project, NO MCP support
+> 
+> This project requires **Block's Goose** for MCP integration. Install it from:
+> https://block.github.io/goose/docs/getting-started/installation
+
 1. Install dependencies: `cd mcp_server && pip install -r requirements.txt`
 2. Configure environment variables in `mcp_server/.env`
 3. Add the extension to your Goose config (`~/.config/goose/config.yaml`)

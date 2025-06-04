@@ -1,4 +1,4 @@
-# Minimal working Goose profiles.yaml format
+# Goose profiles.yaml
 default:
   provider: openai
   processor: gpt-4o

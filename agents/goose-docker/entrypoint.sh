@@ -19,6 +19,7 @@ trap cleanup SIGTERM SIGINT
 export USER=goose
 export HOME=/home/goose
 export DISPLAY=:1
+export PATH="$HOME/.local/bin:$PATH"
 
 # Set API keys globally for all terminal sessions
 echo "🔑 Setting up API keys..."

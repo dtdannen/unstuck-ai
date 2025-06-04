@@ -55,7 +55,7 @@ class GooseSession:
                 return "ERROR: OPENAI_API_KEY not set in environment"
 
             # Start goose session with remote extension (like local setup)
-            cmd = ["goose", "session", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
+            cmd = ["goose", "session", "start", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
 
             print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
             print(f"🔧 Unstuck server will be loaded as remote extension from http://127.0.0.1:8000/sse")
@@ -97,7 +97,7 @@ class GooseSession:
             time.sleep(2)
 
             return (
-                "Goose session started successfully with Computer Controller extension"
+                "Goose session started successfully with Unstuck MCP extension"
             )
 
         except FileNotFoundError:
