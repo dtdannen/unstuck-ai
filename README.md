@@ -6,16 +6,11 @@
 
 MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve visual roadblocks (captchas, web navigation, computer use) via a Nostr marketplace. Includes the MCP server and web app for humans to bid on tasks, complete them, and get paid.
 
-<details>
-<summary><b>🎥 Video Demonstrations</b></summary>
-
-### Featured Demos
+## 🎥 Video Demonstrations
 
 - **[Project Presentation & Q&A](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/final_presentation_and_QnA.mp4)** - Complete overview of Unstuck AI, architecture, and live Q&A session
 - **[Goose Agent in Docker Sandbox](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/demo_video_sandboxxed_goose_paying_invoice.mov)** - Live demo of Goose running in sandbox, paying Bitcoin invoice for human help
 - **[Original Proof of Concept](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV)** - First working version showing the core concept
-
-</details>
 
 ## Quick Start with Goose
 
