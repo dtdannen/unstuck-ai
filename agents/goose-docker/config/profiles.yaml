@@ -1,0 +1,11 @@
+default:
+  provider: openai
+  processor: gpt-4o
+  accelerator: gpt-4o-mini
+  moderator: truncate
+  toolkits:
+    - name: developer
+      requires: {}
+    - name: computer
+      requires: 
+        display: ":1"

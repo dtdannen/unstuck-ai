@@ -27,6 +27,22 @@ class GooseSession:
         try:
             # Set display for GUI applications
             os.environ["DISPLAY"] = ":1"
+            # Set the environment variable that computer toolkit checks for
+            os.environ[":1"] = "true"
+            
+            # Set up unstuck server environment variables
+            if "NOSTR_PRIVATE_KEY" in os.environ:
+                os.environ["NOSTR_PRIVATE_KEY"] = os.environ["NOSTR_PRIVATE_KEY"]
+            if "NWC_KEY" in os.environ:
+                os.environ["NWC_KEY"] = os.environ["NWC_KEY"]
+            if "RELAY_URLS" in os.environ:
+                os.environ["RELAY_URLS"] = os.environ["RELAY_URLS"]
+            if "DIGITAL_OCEAN_SPACES_ACCESS_KEY" in os.environ:
+                os.environ["DIGITAL_OCEAN_SPACES_ACCESS_KEY"] = os.environ["DIGITAL_OCEAN_SPACES_ACCESS_KEY"]
+            if "DIGITAL_OCEAN_SPACES_SECRET_KEY" in os.environ:
+                os.environ["DIGITAL_OCEAN_SPACES_SECRET_KEY"] = os.environ["DIGITAL_OCEAN_SPACES_SECRET_KEY"]
+            if "DIGITAL_OCEAN_SPACE_NAME" in os.environ:
+                os.environ["DIGITAL_OCEAN_SPACE_NAME"] = os.environ["DIGITAL_OCEAN_SPACE_NAME"]
 
             # Ensure config directory exists
             config_dir = "/home/goose/.config/goose"
@@ -38,11 +54,11 @@ class GooseSession:
             else:
                 return "ERROR: OPENAI_API_KEY not set in environment"
 
-            # Start goose session with the correct command
-            # The provider/model come from the config file we created in the Dockerfile
-            cmd = ["goose", "session", "start"]
+            # Start goose session with remote extension (like local setup)
+            cmd = ["goose", "session", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
 
             print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
+            print(f"🔧 Unstuck server will be loaded as remote extension from http://127.0.0.1:8000/sse")
 
             self.process = subprocess.Popen(
                 cmd,
@@ -73,6 +89,11 @@ class GooseSession:
             self.last_output_time = time.time()
 
             # Give it more time to fully initialize
+            time.sleep(2)
+            
+            # Send a test command to check available tools
+            self.process.stdin.write("list available tools\n")
+            self.process.stdin.flush()
             time.sleep(2)
 
             return (

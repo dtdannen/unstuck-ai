@@ -44,16 +44,37 @@ export GOOSE_SANDBOX_MODE=true
 export GOOSE_ALLOW_SUDO=true
 export DISABLE_SAFETY_CHECKS=true
 
+# Copy MCP server configuration to home directory
+echo "📋 Setting up MCP server configuration..."
+if [ -f /home/goose/.config/mcp_servers.json ]; then
+    echo "MCP server config already exists"
+else
+    mkdir -p /home/goose/.config
+    cp /home/goose/.config/goose/mcp_servers.json /home/goose/.config/mcp_servers.json 2>/dev/null || echo "Note: mcp_servers.json not found in goose config"
+fi
+
 echo "🔍 Checking goose configuration..."
-goose configure --help
+goose configure --help 2>/dev/null || echo "Note: 'goose configure' command not available"
 echo ""
 echo "🔍 Checking goose session options..."
 goose session --help
 echo ""
-echo "🔍 Current goose config:"
-cat ~/.config/goose/config.yaml
+echo "🔍 Checking goose help for MCP info..."
+goose --help | grep -i mcp || echo "No MCP info in main help"
 echo ""
-
+echo "🔍 Current goose profiles:"
+cat ~/.config/goose/profiles.yaml
+echo ""
+echo "📋 MCP servers configuration:"
+if [ -f /home/goose/.config/mcp_servers.json ]; then
+    cat /home/goose/.config/mcp_servers.json
+else
+    echo "MCP servers config not found!"
+fi
+echo ""
+echo "🔍 Checking MCP server files:"
+ls -la /home/goose/mcp_server/ 2>/dev/null || echo "MCP server directory not found"
+echo ""
 # Test if the flagging issue is resolved
 echo "🧪 Testing sudo command flagging..."
 echo "Test: sudo apt update" | goose session --no-session 2>&1 | head -10
@@ -68,6 +89,12 @@ sleep 5
 
 if pgrep Xtigervnc > /dev/null; then
     echo "✅ VNC server started successfully"
+    
+    # Now test unstuck server after VNC is running
+    echo "🔍 Testing if unstuck MCP server can run now that display is available:"
+    cd /home/goose/mcp_server && python3 -c "import unstuck_ai.server; print('✅ Unstuck module imports successfully')" 2>&1 || echo "❌ Failed to import unstuck server"
+    cd /home/goose
+    echo ""
 else
     echo "❌ VNC server failed to start"
     exit 1
@@ -92,6 +119,14 @@ fi
 # Test sudo commands
 echo "🧪 Testing sudo commands..."
 goose session --no-session -i <(echo "run: sudo apt update") || echo "Command still flagged"
+
+# Start unstuck MCP server first (like in local setup)
+echo "🚀 Starting unstuck MCP server..."
+cd /home/goose/mcp_server
+fastmcp run unstuck_ai/server.py:mcp --transport sse &
+MCP_PID=$!
+sleep 5
+echo "✅ Unstuck MCP server started on port 8000"
 
 # Start external Goose API
 echo "🦆 Starting external Goose API..."
@@ -125,6 +160,14 @@ while true; do
         echo "⚠️  noVNC died, restarting..."
         websockify --web=/usr/share/novnc/ 6080 localhost:5901 &
         NOVNC_PID=$!
+    fi
+    
+    # Check MCP server
+    if ! kill -0 $MCP_PID 2>/dev/null; then
+        echo "⚠️  MCP server died, restarting..."
+        cd /home/goose/mcp_server
+        fastmcp run unstuck_ai/server.py:mcp --transport sse &
+        MCP_PID=$!
     fi
     
     # Check API

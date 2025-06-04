@@ -1,0 +1,8 @@
+# Simple Goose config.yaml (no extensions needed since we use remote)
+provider: openai
+model: gpt-4o
+
+# Sandbox-specific settings  
+sandbox_mode: true
+allow_sudo: true
+disable_safety_checks: true
