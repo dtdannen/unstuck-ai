@@ -1,6 +1,17 @@
-# Simple Goose config.yaml (no extensions needed since we use remote)
-provider: openai
-model: gpt-4o
+# Goose config.yaml with Computer Controller extension
+provider: anthropic
+model: claude-opus-4-20250514
+
+# Extensions configuration
+extensions:
+  computercontroller:
+    enabled: true
+    name: computercontroller
+    type: builtin
+  developer:
+    enabled: true
+    name: developer
+    type: builtin
 
 # Sandbox-specific settings  
 sandbox_mode: true

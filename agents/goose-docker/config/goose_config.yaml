@@ -1,6 +1,6 @@
-# Minimal working Goose profiles.yaml format
+# Goose profiles.yaml
 default:
-  provider: openai
-  processor: gpt-4o
-  accelerator: gpt-4o-mini
+  provider: anthropic
+  processor: claude-opus-4-20250514
+  accelerator: claude-3-haiku-20240307
   moderator: truncate

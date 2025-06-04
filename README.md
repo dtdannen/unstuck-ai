@@ -1,17 +1,29 @@
 # unstuck-ai
 
 <div align="center">
-  <a href="https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV">
-    <img src="frontend/public/unstuckgoose.png" alt="Unstuck AI Demo Video" width="600">
-  </a>
-  <p>👆 Click the image to watch the demo video 👆</p>
+  <img src="frontend/public/unstuckgoose.png" alt="Unstuck AI" width="200">
 </div>
 
 MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve visual roadblocks (captchas, web navigation, computer use) via a Nostr marketplace. Includes the MCP server and web app for humans to bid on tasks, complete them, and get paid.
 
+## 🎥 Video Demonstrations
+
+- **[Project Presentation & Q&A](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/final_presentation_and_QnA.mp4)** - Complete overview of Unstuck AI, architecture, and live Q&A session
+- **[Goose Agent in Docker Sandbox](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/demo_video_sandboxxed_goose_paying_invoice.mov)** - Live demo of Goose running in sandbox, paying Bitcoin invoice for human help
+- **[Original Proof of Concept](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV)** - First working version showing the core concept
+
 ## Quick Start with Goose
 
 Want to use this with [Goose](https://github.com/block/goose)? See **[GOOSE_SETUP.md](GOOSE_SETUP.md)** for complete setup instructions.
+
+> **⚠️ IMPORTANT: Goose Version Distinction**
+> 
+> There are two different AI assistants named "Goose":
+> - **Block's Goose** (https://github.com/block/goose) - Version 1.0.x+, has MCP support with `--with-remote-extension`
+> - **goose-ai** (PyPI package) - Version 0.9.x, different project, NO MCP support
+> 
+> This project requires **Block's Goose** for MCP integration. Install it from:
+> https://block.github.io/goose/docs/getting-started/installation
 
 1. Install dependencies: `cd mcp_server && pip install -r requirements.txt`
 2. Configure environment variables in `mcp_server/.env`
@@ -31,7 +43,7 @@ Components:
     - [x] (testing) check invoice was paid in payment simulator before sending 6109
     - [x] get image upload working on digital ocean
     - [x] get goose or claude to take a screenshot and call the mcp tool correctly
-    - [ ] provide a docker container to run an MCP based agent (like the claude computer use demo here https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
+    - [x] provide a docker container to run an MCP based agent (like the claude computer use demo here https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
       - you should be able to navigate to a webpage on your computer that lets you interact with Goose running in the VM
       - it should work as if you were running it locally
       - we expect it will be easier to get automation tools working in this VM, because you can safely get goose to work with full permissions
@@ -49,7 +61,7 @@ Components:
     - [x] Allow user to select a job
         - [x] generate a lightning invoice for the amount
         - [x] broadcast a kind 7000 event with the invoice and price
-        - [ ] show a notification when the invoice was paid
+        - [x] show a notification when the invoice was paid
             - one suggestion is to use bitconnect instead of webln + browser extension (current demo shows alby extension)
     - [x] Show a workspace like page for the user to do the work
     - [x] Send the final job result event when the user is done

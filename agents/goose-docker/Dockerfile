@@ -48,8 +48,8 @@ RUN mkdir -p ~/.config/goose
 COPY agents/goose-docker/config/goose_config.yaml /home/goose/.config/goose/profiles.yaml
 COPY agents/goose-docker/config/config.yaml /home/goose/.config/goose/config.yaml
 
-# Copy MCP server configuration
-COPY agents/goose-docker/config/mcp_servers.json /home/goose/.config/mcp_servers.json
+# Copy MCP server configuration to where Block's Goose expects it
+COPY agents/goose-docker/config/mcp_servers.json /home/goose/.config/goose/mcp_servers.json
 
 # Set up VNC directories
 RUN mkdir -p ~/.vnc ~/.config/xfce4
@@ -102,10 +102,19 @@ RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/.config/xfce4/xfconf/xfce-
 
 USER root
 
-# Install requirements and Goose
+# Install requirements
 COPY agents/goose-docker/requirements.txt /tmp/
 RUN pip3 install -r /tmp/requirements.txt
-RUN pip3 install goose-ai
+
+# Install curl if not already installed
+RUN apt-get update && apt-get install -y curl
+
+# Install Block's Goose (the correct one with MCP support)
+# Install as root first
+RUN curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash && \
+    # Move goose binary to system-wide location
+    mv /root/.local/bin/goose /usr/local/bin/goose && \
+    chmod +x /usr/local/bin/goose
 
 # Copy and install unstuck MCP server
 # Note: mcp_server directory should be copied to the build context
@@ -122,7 +131,10 @@ RUN mkdir -p /home/goose/workspace && \
 # Create scripts directory and copy API
 RUN mkdir -p /home/goose/scripts
 COPY agents/goose-docker/scripts/ /home/goose/scripts/
-RUN chown -R goose:goose /home/goose/scripts
+COPY agents/goose-docker/unstuck_toolkit.py /home/goose/.config/goose/toolkits/unstuck.py
+RUN chown -R goose:goose /home/goose/scripts && \
+    mkdir -p /home/goose/.config/goose/toolkits && \
+    chown -R goose:goose /home/goose/.config/goose/toolkits
     
 # Copy entrypoint
 COPY agents/goose-docker/entrypoint.sh /entrypoint.sh

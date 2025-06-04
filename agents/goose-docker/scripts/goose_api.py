@@ -9,6 +9,13 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import os
 import signal
+import re
+
+
+def strip_ansi_codes(text):
+    """Remove ANSI escape sequences from text"""
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", text)
 
 
 class GooseSession:
@@ -29,7 +36,10 @@ class GooseSession:
             os.environ["DISPLAY"] = ":1"
             # Set the environment variable that computer toolkit checks for
             os.environ[":1"] = "true"
-            
+            # Set Goose provider and model
+            os.environ["GOOSE_PROVIDER"] = "anthropic"
+            os.environ["GOOSE_MODEL"] = "claude-opus-4-20250514"
+
             # Set up unstuck server environment variables
             if "NOSTR_PRIVATE_KEY" in os.environ:
                 os.environ["NOSTR_PRIVATE_KEY"] = os.environ["NOSTR_PRIVATE_KEY"]
@@ -38,27 +48,51 @@ class GooseSession:
             if "RELAY_URLS" in os.environ:
                 os.environ["RELAY_URLS"] = os.environ["RELAY_URLS"]
             if "DIGITAL_OCEAN_SPACES_ACCESS_KEY" in os.environ:
-                os.environ["DIGITAL_OCEAN_SPACES_ACCESS_KEY"] = os.environ["DIGITAL_OCEAN_SPACES_ACCESS_KEY"]
+                os.environ["DIGITAL_OCEAN_SPACES_ACCESS_KEY"] = os.environ[
+                    "DIGITAL_OCEAN_SPACES_ACCESS_KEY"
+                ]
             if "DIGITAL_OCEAN_SPACES_SECRET_KEY" in os.environ:
-                os.environ["DIGITAL_OCEAN_SPACES_SECRET_KEY"] = os.environ["DIGITAL_OCEAN_SPACES_SECRET_KEY"]
+                os.environ["DIGITAL_OCEAN_SPACES_SECRET_KEY"] = os.environ[
+                    "DIGITAL_OCEAN_SPACES_SECRET_KEY"
+                ]
             if "DIGITAL_OCEAN_SPACE_NAME" in os.environ:
-                os.environ["DIGITAL_OCEAN_SPACE_NAME"] = os.environ["DIGITAL_OCEAN_SPACE_NAME"]
+                os.environ["DIGITAL_OCEAN_SPACE_NAME"] = os.environ[
+                    "DIGITAL_OCEAN_SPACE_NAME"
+                ]
 
             # Ensure config directory exists
             config_dir = "/home/goose/.config/goose"
             os.makedirs(config_dir, exist_ok=True)
 
             # Set API key in environment for this session
-            if "OPENAI_API_KEY" in os.environ:
-                print(f"🔑 Using OpenAI API key: {os.environ['OPENAI_API_KEY'][:8]}...")
+            if "ANTHROPIC_API_KEY" in os.environ:
+                print(
+                    f"🔑 Using Anthropic API key: {os.environ['ANTHROPIC_API_KEY'][:8]}..."
+                )
             else:
-                return "ERROR: OPENAI_API_KEY not set in environment"
+                return "ERROR: ANTHROPIC_API_KEY not set in environment"
 
-            # Start goose session with remote extension (like local setup)
-            cmd = ["goose", "session", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
+            # Start goose session with both built-in extensions AND MCP extensions
+            cmd = [
+                "goose",
+                "session",
+                "--with-builtin",
+                "developer,computercontroller",
+                "--with-extension",
+                "fastmcp run /home/goose/mcp_server/unstuck_ai/server.py:mcp --transport stdio",
+            ]
 
             print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
-            print(f"🔧 Unstuck server will be loaded as remote extension from http://127.0.0.1:8000/sse")
+            print(
+                f"🔧 Using both built-in extensions (developer, computercontroller) and unstuck MCP"
+            )
+
+            # Check if MCP servers config exists
+            mcp_config_path = "/home/goose/.config/goose/mcp_servers.json"
+            if os.path.exists(mcp_config_path):
+                print(f"✅ MCP config found at {mcp_config_path}")
+            else:
+                print(f"❌ Warning: MCP config not found at {mcp_config_path}")
 
             self.process = subprocess.Popen(
                 cmd,
@@ -90,15 +124,13 @@ class GooseSession:
 
             # Give it more time to fully initialize
             time.sleep(2)
-            
+
             # Send a test command to check available tools
-            self.process.stdin.write("list available tools\n")
+            self.process.stdin.write("list tools\n")
             self.process.stdin.flush()
             time.sleep(2)
 
-            return (
-                "Goose session started successfully with Computer Controller extension"
-            )
+            return "Goose session started successfully with Unstuck MCP extension"
 
         except FileNotFoundError:
             return (
@@ -143,8 +175,10 @@ class GooseSession:
                 line = self.process.stdout.readline()
                 if line:
                     line = line.strip()
-                    print(f"📥 Goose output: {line}")  # Debug logging
-                    self.output_buffer.append(line)
+                    # Strip ANSI color codes for clean web display
+                    clean_line = strip_ansi_codes(line)
+                    print(f"📥 Goose output: {clean_line}")  # Debug logging
+                    self.output_buffer.append(clean_line)
                     self.last_output_time = time.time()
 
                     # Keep only last 100 lines to prevent memory issues
@@ -224,8 +258,8 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
                 ),
                 "env_vars": {
                     "DISPLAY": os.environ.get("DISPLAY"),
-                    "OPENAI_API_KEY": (
-                        "SET" if os.environ.get("OPENAI_API_KEY") else "NOT SET"
+                    "ANTHROPIC_API_KEY": (
+                        "SET" if os.environ.get("ANTHROPIC_API_KEY") else "NOT SET"
                     ),
                     "HOME": os.environ.get("HOME"),
                     "PWD": os.getcwd(),
@@ -357,6 +391,7 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
                 <button type="button">Open VNC Desktop</button>
             </a>
             <button onclick="resetOutput()">🔄 Reset & Show All</button>
+            <button onclick="copyChat()">📋 Copy Chat</button>
 
             <div class="chat-log" id="chatLog">Welcome to Goose Chat Interface!<br>Click "Start Goose Session" to begin, then type commands below.</div>
             
@@ -370,7 +405,7 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
                 <button class="example-btn" onclick="sendExample('Take a screenshot of the desktop')">📸 Screenshot</button>
                 <button class="example-btn" onclick="sendExample('Open Firefox and go to google.com')">🌐 Open Browser</button>
                 <button class="example-btn" onclick="sendExample('Create a text file called notes.txt')">📝 Create File</button>
-                <button class="example-btn" onclick="sendExample('Help me organize files on the desktop')">📁 Organize Files</button>
+                <button class="example-btn" onclick="sendExample('can you take a screenshot, save it to a file with a timestamped file name and note the filename, and then ask a human via unstuck visual helper tool to help you figure out where to click to open the web browser application on the desktop?')">Run Unstuck Demo</button>
             </div>
         </div>
 
@@ -404,6 +439,30 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
             function resetOutput() {
                 lastBufferSize = 0;
                 log('🔄 Reset - will show all output');
+            }
+
+            async function copyChat() {
+                try {
+                    const chatLog = document.getElementById('chatLog');
+                    const chatText = chatLog.textContent;
+                    
+                    await navigator.clipboard.writeText(chatText);
+                    log('📋 Chat copied to clipboard!');
+                } catch (error) {
+                    // Fallback for older browsers or if clipboard API fails
+                    const chatLog = document.getElementById('chatLog');
+                    const chatText = chatLog.textContent;
+                    
+                    // Create a temporary textarea element
+                    const textarea = document.createElement('textarea');
+                    textarea.value = chatText;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    
+                    log('📋 Chat copied to clipboard (fallback method)!');
+                }
             }
 
             async function startSession() {
