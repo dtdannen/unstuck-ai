@@ -3,8 +3,8 @@
 services:
   goose-agent:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: agents/goose-docker/Dockerfile
     container_name: goose-docker-agent
     
     ports:
@@ -17,6 +17,7 @@ services:
     
     environment:
       - DISPLAY=:1
+      - ":1=true"
       - VNC_RESOLUTION=1920x1080
       - VNC_DEPTH=24
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -29,6 +30,13 @@ services:
       - GOOSE_ALLOW_SUDO=true
       - DISABLE_SAFETY_CHECKS=true
       - GOOSE_DISABLE_COMMAND_FILTERING=true
+      # Unstuck MCP server environment variables
+      - NOSTR_PRIVATE_KEY=${NOSTR_PRIVATE_KEY}
+      - NWC_KEY=${NWC_KEY}
+      - RELAY_URLS=${RELAY_URLS}
+      - DIGITAL_OCEAN_SPACES_ACCESS_KEY=${DIGITAL_OCEAN_SPACES_ACCESS_KEY}
+      - DIGITAL_OCEAN_SPACES_SECRET_KEY=${DIGITAL_OCEAN_SPACES_SECRET_KEY}
+      - DIGITAL_OCEAN_SPACE_NAME=${DIGITAL_OCEAN_SPACE_NAME}
     
     stdin_open: true
     tty: true

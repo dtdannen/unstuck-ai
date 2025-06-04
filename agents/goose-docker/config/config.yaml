@@ -1,0 +1,19 @@
+# Goose config.yaml with Computer Controller extension
+provider: anthropic
+model: claude-opus-4-20250514
+
+# Extensions configuration
+extensions:
+  computercontroller:
+    enabled: true
+    name: computercontroller
+    type: builtin
+  developer:
+    enabled: true
+    name: developer
+    type: builtin
+
+# Sandbox-specific settings  
+sandbox_mode: true
+allow_sudo: true
+disable_safety_checks: true

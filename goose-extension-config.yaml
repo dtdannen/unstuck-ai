@@ -1,6 +1,12 @@
 # Goose Extension Configuration for Unstuck AI
 # Copy this configuration to your Goose config file to enable the unstuckhelper extension
 
+default:
+  provider: anthropic
+  processor: claude-3-5-sonnet-20241022
+  accelerator: claude-3-haiku-20240307
+  moderator: truncate
+
 extensions:
   unstuckhelper:
     args:

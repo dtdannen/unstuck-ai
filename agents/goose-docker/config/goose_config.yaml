@@ -1,25 +1,6 @@
-# config/goose_config.yaml
-provider: openai
-model: gpt-4o
-
-extensions:
-  computercontroller:
-    enabled: true
-    name: computercontroller
-    type: builtin
-    timeout: 300
-  developer:
-    enabled: true
-    name: developer
-    type: builtin
-  memory:
-    enabled: true
-    name: memory
-    type: builtin
-  # Add more extensions that might help
-  # Note: some of these might not exist, but worth trying
-
-# Sandbox-specific settings
-sandbox_mode: true
-allow_sudo: true
-disable_safety_checks: true
+# Goose profiles.yaml
+default:
+  provider: anthropic
+  processor: claude-opus-4-20250514
+  accelerator: claude-3-haiku-20240307
+  moderator: truncate

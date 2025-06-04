@@ -1,0 +1,11 @@
+default:
+  provider: anthropic
+  processor: claude-opus-4-20250514
+  accelerator: claude-3-haiku-20240307
+  moderator: truncate
+  toolkits:
+    - name: developer
+      requires: {}
+    - name: computer
+      requires: 
+        display: ":1"

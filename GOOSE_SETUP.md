@@ -4,7 +4,21 @@ This guide explains how to set up the Unstuck AI extension for Goose, allowing A
 
 ## Prerequisites
 
-1. [Goose](https://github.com/block/goose) installed and working
+> **⚠️ IMPORTANT: Make Sure You Have the Right Goose!**
+> 
+> There are two different AI assistants named "Goose":
+> - **Block's Goose** (https://github.com/block/goose) - Version 1.0.x+, has MCP support ✅
+> - **goose-ai** (PyPI package) - Version 0.9.x, different project, NO MCP support ❌
+> 
+> This extension requires **Block's Goose**. Check your version:
+> ```bash
+> goose --version  # Should show 1.0.x or higher
+> ```
+> 
+> If you see 0.9.x or get an error, install Block's Goose from:
+> https://block.github.io/goose/docs/getting-started/installation
+
+1. [Block's Goose](https://github.com/block/goose) v1.0+ installed and working
 2. Python 3.8+ with pip
 3. This repository cloned locally
 

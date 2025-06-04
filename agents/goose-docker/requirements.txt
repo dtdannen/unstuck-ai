@@ -1,6 +1,6 @@
 # /agents/goose-docker/requirements.txt
 
-goose-ai
+# Block's Goose is installed via pipx in Dockerfile
 requests
 beautifulsoup4
 pillow

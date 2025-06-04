@@ -19,6 +19,7 @@ trap cleanup SIGTERM SIGINT
 export USER=goose
 export HOME=/home/goose
 export DISPLAY=:1
+export PATH="$HOME/.local/bin:$PATH"
 
 # Set API keys globally for all terminal sessions
 echo "🔑 Setting up API keys..."
@@ -36,6 +37,8 @@ echo "export GOOSE_DEBUG=1" >> ~/.bashrc
 echo "export GOOSE_SANDBOX_MODE=true" >> ~/.bashrc
 echo "export GOOSE_ALLOW_SUDO=true" >> ~/.bashrc
 echo "export DISABLE_SAFETY_CHECKS=true" >> ~/.bashrc
+echo "export GOOSE_PROVIDER=anthropic" >> ~/.bashrc
+echo "export GOOSE_MODEL=claude-opus-4-20250514" >> ~/.bashrc
 
 # Set for current session too
 export GOOSE_DISABLE_KEYRING=1
@@ -43,20 +46,49 @@ export GOOSE_DEBUG=1
 export GOOSE_SANDBOX_MODE=true
 export GOOSE_ALLOW_SUDO=true
 export DISABLE_SAFETY_CHECKS=true
+export GOOSE_PROVIDER=anthropic
+export GOOSE_MODEL=claude-opus-4-20250514
+
+# Check MCP server configuration
+echo "📋 Checking MCP server configuration..."
+# Block's Goose looks for MCP servers in ~/.config/goose/mcp_servers.json
+if [ -f /home/goose/.config/goose/mcp_servers.json ]; then
+    echo "✅ MCP server config found at ~/.config/goose/mcp_servers.json"
+    # Note: Goose should handle environment variable expansion in the JSON file
+else
+    echo "❌ Warning: mcp_servers.json not found at ~/.config/goose/mcp_servers.json"
+fi
 
 echo "🔍 Checking goose configuration..."
-goose configure --help
+goose configure --help 2>/dev/null || echo "Note: 'goose configure' command not available"
 echo ""
 echo "🔍 Checking goose session options..."
 goose session --help
 echo ""
-echo "🔍 Current goose config:"
-cat ~/.config/goose/config.yaml
+echo "🔍 Checking goose help for MCP info..."
+goose --help | grep -i mcp || echo "No MCP info in main help"
 echo ""
-
-# Test if the flagging issue is resolved
-echo "🧪 Testing sudo command flagging..."
-echo "Test: sudo apt update" | goose session --no-session 2>&1 | head -10
+echo "🔍 Current goose profiles:"
+cat ~/.config/goose/profiles.yaml
+echo ""
+echo "📋 MCP servers configuration:"
+if [ -f /home/goose/.config/goose/mcp_servers.json ]; then
+    echo "Found at ~/.config/goose/mcp_servers.json:"
+    cat /home/goose/.config/goose/mcp_servers.json
+else
+    echo "MCP servers config not found at ~/.config/goose/mcp_servers.json!"
+fi
+echo ""
+echo "🔍 Checking MCP server files:"
+ls -la /home/goose/mcp_server/ 2>/dev/null || echo "MCP server directory not found"
+echo ""
+echo "🔍 Checking if fastmcp is available:"
+which fastmcp || echo "fastmcp not found in PATH"
+echo ""
+echo "🔍 Checking if goose-mcp-server is available:"
+which goose-mcp-server || echo "goose-mcp-server not found in PATH"
+echo ""
+# Skip outdated test - goose session syntax has changed
 echo ""
 echo "🧹 Cleaning any existing VNC sessions..."
 vncserver -kill :1 2>/dev/null || echo "No existing VNC sessions"
@@ -68,6 +100,12 @@ sleep 5
 
 if pgrep Xtigervnc > /dev/null; then
     echo "✅ VNC server started successfully"
+    
+    # Now test unstuck server after VNC is running
+    echo "🔍 Testing if unstuck MCP server can run now that display is available:"
+    cd /home/goose/mcp_server && python3 -c "import unstuck_ai.server; print('✅ Unstuck module imports successfully')" 2>&1 || echo "❌ Failed to import unstuck server"
+    cd /home/goose
+    echo ""
 else
     echo "❌ VNC server failed to start"
     exit 1
@@ -89,9 +127,11 @@ else
     echo "⚠️  Automation test had issues, but continuing..."
 fi
 
-# Test sudo commands
-echo "🧪 Testing sudo commands..."
-goose session --no-session -i <(echo "run: sudo apt update") || echo "Command still flagged"
+# Skip outdated sudo test - command syntax has changed
+
+# Unstuck MCP server is now configured in mcp_servers.json
+# and will be started automatically by Goose
+echo "✅ Unstuck MCP configured in mcp_servers.json"
 
 # Start external Goose API
 echo "🦆 Starting external Goose API..."
@@ -126,6 +166,8 @@ while true; do
         websockify --web=/usr/share/novnc/ 6080 localhost:5901 &
         NOVNC_PID=$!
     fi
+    
+    # MCP servers are managed by Goose itself via mcp_servers.json
     
     # Check API
     if ! kill -0 $API_PID 2>/dev/null; then
