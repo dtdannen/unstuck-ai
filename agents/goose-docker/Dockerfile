@@ -131,10 +131,8 @@ RUN mkdir -p /home/goose/workspace && \
 # Create scripts directory and copy API
 RUN mkdir -p /home/goose/scripts
 COPY agents/goose-docker/scripts/ /home/goose/scripts/
-COPY agents/goose-docker/mcp_stdio_wrapper.py /app/mcp_stdio_wrapper.py
 COPY agents/goose-docker/unstuck_toolkit.py /home/goose/.config/goose/toolkits/unstuck.py
 RUN chown -R goose:goose /home/goose/scripts && \
-    chmod +x /app/mcp_stdio_wrapper.py && \
     mkdir -p /home/goose/.config/goose/toolkits && \
     chown -R goose:goose /home/goose/.config/goose/toolkits
     
