@@ -48,7 +48,7 @@ Components:
     - [x] (testing) check invoice was paid in payment simulator before sending 6109
     - [x] get image upload working on digital ocean
     - [x] get goose or claude to take a screenshot and call the mcp tool correctly
-    - [ ] provide a docker container to run an MCP based agent (like the claude computer use demo here https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
+    - [x] provide a docker container to run an MCP based agent (like the claude computer use demo here https://github.com/anthropics/anthropic-quickstarts/tree/main/computer-use-demo)
       - you should be able to navigate to a webpage on your computer that lets you interact with Goose running in the VM
       - it should work as if you were running it locally
       - we expect it will be easier to get automation tools working in this VM, because you can safely get goose to work with full permissions
@@ -66,7 +66,7 @@ Components:
     - [x] Allow user to select a job
         - [x] generate a lightning invoice for the amount
         - [x] broadcast a kind 7000 event with the invoice and price
-        - [ ] show a notification when the invoice was paid
+        - [x] show a notification when the invoice was paid
             - one suggestion is to use bitconnect instead of webln + browser extension (current demo shows alby extension)
     - [x] Show a workspace like page for the user to do the work
     - [x] Send the final job result event when the user is done
