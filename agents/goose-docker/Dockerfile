@@ -44,19 +44,8 @@ WORKDIR /home/goose
 # Create Goose config directory
 RUN mkdir -p ~/.config/goose
 
-# Create Goose configuration with Computer Controller enabled
-RUN echo 'provider: openai' > ~/.config/goose/config.yaml && \
-    echo 'model: gpt-4o' >> ~/.config/goose/config.yaml && \
-    echo 'extensions:' >> ~/.config/goose/config.yaml && \
-    echo '  computercontroller:' >> ~/.config/goose/config.yaml && \
-    echo '    enabled: true' >> ~/.config/goose/config.yaml && \
-    echo '    name: computercontroller' >> ~/.config/goose/config.yaml && \
-    echo '    type: builtin' >> ~/.config/goose/config.yaml && \
-    echo '    timeout: 300' >> ~/.config/goose/config.yaml && \
-    echo '  developer:' >> ~/.config/goose/config.yaml && \
-    echo '    enabled: true' >> ~/.config/goose/config.yaml && \
-    echo '    name: developer' >> ~/.config/goose/config.yaml && \
-    echo '    type: builtin' >> ~/.config/goose/config.yaml
+# Copy the custom goose configuration 
+COPY config/goose_config.yaml /home/goose/.config/goose/config.yaml
 
 # Set up VNC directories
 RUN mkdir -p ~/.vnc ~/.config/xfce4

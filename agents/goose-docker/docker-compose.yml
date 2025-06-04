@@ -21,6 +21,14 @@ services:
       - VNC_DEPTH=24
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Goose-specific environment variables
+      - GOOSE_DISABLE_KEYRING=1
+      - GOOSE_DEBUG=1
+      # Experimental sandbox settings
+      - GOOSE_SANDBOX_MODE=true
+      - GOOSE_ALLOW_SUDO=true
+      - DISABLE_SAFETY_CHECKS=true
+      - GOOSE_DISABLE_COMMAND_FILTERING=true
     
     stdin_open: true
     tty: true

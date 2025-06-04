@@ -29,6 +29,35 @@ echo "export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}'" >> ~/.bashrc
 export OPENAI_API_KEY="${OPENAI_API_KEY}"
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
 
+# Set additional goose environment variables
+echo "🔧 Setting up goose environment variables..."
+echo "export GOOSE_DISABLE_KEYRING=1" >> ~/.bashrc
+echo "export GOOSE_DEBUG=1" >> ~/.bashrc
+echo "export GOOSE_SANDBOX_MODE=true" >> ~/.bashrc
+echo "export GOOSE_ALLOW_SUDO=true" >> ~/.bashrc
+echo "export DISABLE_SAFETY_CHECKS=true" >> ~/.bashrc
+
+# Set for current session too
+export GOOSE_DISABLE_KEYRING=1
+export GOOSE_DEBUG=1
+export GOOSE_SANDBOX_MODE=true
+export GOOSE_ALLOW_SUDO=true
+export DISABLE_SAFETY_CHECKS=true
+
+echo "🔍 Checking goose configuration..."
+goose configure --help
+echo ""
+echo "🔍 Checking goose session options..."
+goose session --help
+echo ""
+echo "🔍 Current goose config:"
+cat ~/.config/goose/config.yaml
+echo ""
+
+# Test if the flagging issue is resolved
+echo "🧪 Testing sudo command flagging..."
+echo "Test: sudo apt update" | goose session --no-session 2>&1 | head -10
+echo ""
 echo "🧹 Cleaning any existing VNC sessions..."
 vncserver -kill :1 2>/dev/null || echo "No existing VNC sessions"
 
@@ -59,6 +88,10 @@ if [ $? -eq 0 ]; then
 else
     echo "⚠️  Automation test had issues, but continuing..."
 fi
+
+# Test sudo commands
+echo "🧪 Testing sudo commands..."
+goose session --no-session -i <(echo "run: sudo apt update") || echo "Command still flagged"
 
 # Start external Goose API
 echo "🦆 Starting external Goose API..."
