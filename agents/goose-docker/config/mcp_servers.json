@@ -7,13 +7,6 @@
             ],
             "env": {}
         },
-        "goose-computer": {
-            "command": "goose-mcp-server",
-            "args": [],
-            "env": {
-                "DISPLAY": ":1"
-            }
-        },
         "unstuck": {
             "command": "fastmcp",
             "args": [

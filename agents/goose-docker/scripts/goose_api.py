@@ -72,17 +72,19 @@ class GooseSession:
             else:
                 return "ERROR: ANTHROPIC_API_KEY not set in environment"
 
-            # Start goose session with just the unstuck MCP extension (no built-in computer for now)
+            # Start goose session with both built-in extensions AND MCP extensions
             cmd = [
                 "goose",
                 "session",
+                "--with-builtin",
+                "developer,computercontroller",
                 "--with-extension",
                 "fastmcp run /home/goose/mcp_server/unstuck_ai/server.py:mcp --transport stdio",
             ]
 
             print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
             print(
-                f"🔧 Using unstuck MCP server via CLI flags (testing without built-in computer extension)"
+                f"🔧 Using both built-in extensions (developer, computercontroller) and unstuck MCP"
             )
 
             # Check if MCP servers config exists
@@ -389,6 +391,7 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
                 <button type="button">Open VNC Desktop</button>
             </a>
             <button onclick="resetOutput()">🔄 Reset & Show All</button>
+            <button onclick="copyChat()">📋 Copy Chat</button>
 
             <div class="chat-log" id="chatLog">Welcome to Goose Chat Interface!<br>Click "Start Goose Session" to begin, then type commands below.</div>
             
@@ -402,7 +405,7 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
                 <button class="example-btn" onclick="sendExample('Take a screenshot of the desktop')">📸 Screenshot</button>
                 <button class="example-btn" onclick="sendExample('Open Firefox and go to google.com')">🌐 Open Browser</button>
                 <button class="example-btn" onclick="sendExample('Create a text file called notes.txt')">📝 Create File</button>
-                <button class="example-btn" onclick="sendExample('can you take a screenshot yourself, save it to a file and note the filename, and then ask a human via unstuck visual helper tool to help you figure out where to click to open the web browser application on the desktop?')">Run Unstuck Demo</button>
+                <button class="example-btn" onclick="sendExample('can you take a screenshot, save it to a file with a timestamped file name and note the filename, and then ask a human via unstuck visual helper tool to help you figure out where to click to open the web browser application on the desktop?')">Run Unstuck Demo</button>
             </div>
         </div>
 
@@ -436,6 +439,30 @@ class GooseAPIHandler(BaseHTTPRequestHandler):
             function resetOutput() {
                 lastBufferSize = 0;
                 log('🔄 Reset - will show all output');
+            }
+
+            async function copyChat() {
+                try {
+                    const chatLog = document.getElementById('chatLog');
+                    const chatText = chatLog.textContent;
+                    
+                    await navigator.clipboard.writeText(chatText);
+                    log('📋 Chat copied to clipboard!');
+                } catch (error) {
+                    // Fallback for older browsers or if clipboard API fails
+                    const chatLog = document.getElementById('chatLog');
+                    const chatText = chatLog.textContent;
+                    
+                    // Create a temporary textarea element
+                    const textarea = document.createElement('textarea');
+                    textarea.value = chatText;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    
+                    log('📋 Chat copied to clipboard (fallback method)!');
+                }
             }
 
             async function startSession() {
