@@ -29,6 +29,9 @@ class GooseSession:
             os.environ["DISPLAY"] = ":1"
             # Set the environment variable that computer toolkit checks for
             os.environ[":1"] = "true"
+            # Set Goose provider and model
+            os.environ["GOOSE_PROVIDER"] = "openai"
+            os.environ["GOOSE_MODEL"] = "gpt-4o"
             
             # Set up unstuck server environment variables
             if "NOSTR_PRIVATE_KEY" in os.environ:
@@ -55,7 +58,7 @@ class GooseSession:
                 return "ERROR: OPENAI_API_KEY not set in environment"
 
             # Start goose session with remote extension (like local setup)
-            cmd = ["goose", "session", "start", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
+            cmd = ["goose", "session", "--with-remote-extension", "http://127.0.0.1:8000/sse"]
 
             print(f"🚀 Starting Goose with command: {' '.join(cmd)}")
             print(f"🔧 Unstuck server will be loaded as remote extension from http://127.0.0.1:8000/sse")
