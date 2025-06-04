@@ -6,38 +6,14 @@
 
 MCP server enabling AI agents to instantly pay humans sats (Bitcoin) to solve visual roadblocks (captchas, web navigation, computer use) via a Nostr marketplace. Includes the MCP server and web app for humans to bid on tasks, complete them, and get paid.
 
-## 🎥 Video Demonstrations
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center" width="50%">
-        <a href="https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/final_presentation_and_QnA.mp4">
-          <img src="https://img.shields.io/badge/▶️_Watch-Project_Presentation-blue?style=for-the-badge&logo=youtube" alt="Project Presentation">
-        </a>
-        <br><br>
-        <b>Project Presentation & Q&A</b>
-        <br>
-        <sub>Complete overview of Unstuck AI, architecture, and live Q&A session</sub>
-      </td>
-      <td align="center" width="50%">
-        <a href="https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/demo_video_sandboxxed_goose_paying_invoice.mov">
-          <img src="https://img.shields.io/badge/▶️_Watch-Sandboxed_Goose_Demo-green?style=for-the-badge&logo=youtube" alt="Sandboxed Goose Demo">
-        </a>
-        <br><br>
-        <b>Goose Agent in Docker Sandbox</b>
-        <br>
-        <sub>Live demo of Goose running in sandbox, paying Bitcoin invoice for human help</sub>
-      </td>
-    </tr>
-  </table>
-</div>
-
-### 📺 More Demos
 <details>
-<summary>Click to see all demo videos</summary>
+<summary><b>🎥 Video Demonstrations</b></summary>
 
-- [Original Proof of Concept](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV) - First working version showing the core concept
+### Featured Demos
+
+- **[Project Presentation & Q&A](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/final_presentation_and_QnA.mp4)** - Complete overview of Unstuck AI, architecture, and live Q&A session
+- **[Goose Agent in Docker Sandbox](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/demos/demo_video_sandboxxed_goose_paying_invoice.mov)** - Live demo of Goose running in sandbox, paying Bitcoin invoice for human help
+- **[Original Proof of Concept](https://unstuck-goose.nyc3.cdn.digitaloceanspaces.com/Screen%20Recording%202025-05-17%20at%204.52.34%E2%80%AFPM.MOV)** - First working version showing the core concept
 
 </details>
 
