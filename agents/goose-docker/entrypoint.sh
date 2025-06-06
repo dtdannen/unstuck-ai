@@ -127,6 +127,14 @@ else
     echo "⚠️  Automation test had issues, but continuing..."
 fi
 
+# Test browser availability
+echo "🌐 Testing browser availability..."
+if command -v firefox &> /dev/null; then
+    echo "✅ Firefox is installed at: $(which firefox)"
+else
+    echo "❌ Firefox not found!"
+fi
+
 # Skip outdated sudo test - command syntax has changed
 
 # Unstuck MCP server is now configured in mcp_servers.json

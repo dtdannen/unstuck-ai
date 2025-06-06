@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y \
     dbus-x11 \
     sudo \
     procps \
+    libgtk-3-0 \
+    libasound2 \
+    libdbus-glib-1-2 \
     # Screenshot and automation tools
     scrot \
     imagemagick \
@@ -86,7 +89,22 @@ RUN echo '#!/bin/bash' > ~/.vnc/xstartup && \
 # Create XFCE config directory
 RUN mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml
 
-# Create XFCE session config using echo commands
+# Create Desktop directory and browser shortcuts
+RUN mkdir -p ~/Desktop && \
+    echo '[Desktop Entry]' > ~/Desktop/firefox.desktop && \
+    echo 'Version=1.0' >> ~/Desktop/firefox.desktop && \
+    echo 'Type=Application' >> ~/Desktop/firefox.desktop && \
+    echo 'Name=Firefox' >> ~/Desktop/firefox.desktop && \
+    echo 'Comment=Browse the Web' >> ~/Desktop/firefox.desktop && \
+    echo 'Exec=/usr/bin/firefox %u' >> ~/Desktop/firefox.desktop && \
+    echo 'Terminal=false' >> ~/Desktop/firefox.desktop && \
+    echo 'Icon=firefox' >> ~/Desktop/firefox.desktop && \
+    echo 'Categories=Network;WebBrowser;' >> ~/Desktop/firefox.desktop && \
+    echo 'MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;' >> ~/Desktop/firefox.desktop && \
+    echo 'StartupNotify=true' >> ~/Desktop/firefox.desktop && \
+    chmod +x ~/Desktop/firefox.desktop
+
+# Create XFCE session config to disable screensaver and power management
 RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml && \
     echo '<channel name="xfce4-session" version="1.0">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml && \
     echo '  <property name="startup" type="empty">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml && \
@@ -99,6 +117,36 @@ RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/.config/xfce4/xfconf/xfce-
     echo '    <property name="ShowSuspend" type="bool" value="false"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml && \
     echo '  </property>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml && \
     echo '</channel>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+
+# Disable power manager to prevent plugin errors
+RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '<channel name="xfce4-power-manager" version="1.0">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '  <property name="xfce4-power-manager" type="empty">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '    <property name="power-button-action" type="uint" value="0"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '    <property name="show-tray-icon" type="bool" value="false"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '  </property>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml && \
+    echo '</channel>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml
+
+# Disable screensaver completely
+RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '<channel name="xfce4-screensaver" version="1.0">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '  <property name="saver" type="empty">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '    <property name="enabled" type="bool" value="false"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '    <property name="mode" type="int" value="0"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '  </property>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '  <property name="lock" type="empty">' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '    <property name="enabled" type="bool" value="false"/>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '  </property>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml && \
+    echo '</channel>' >> ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml
+
+# Create autostart directory and disable unwanted services
+RUN mkdir -p ~/.config/autostart && \
+    echo '[Desktop Entry]' > ~/.config/autostart/xfce4-power-manager.desktop && \
+    echo 'Hidden=true' >> ~/.config/autostart/xfce4-power-manager.desktop && \
+    echo '[Desktop Entry]' > ~/.config/autostart/xscreensaver.desktop && \
+    echo 'Hidden=true' >> ~/.config/autostart/xscreensaver.desktop && \
+    echo '[Desktop Entry]' > ~/.config/autostart/light-locker.desktop && \
+    echo 'Hidden=true' >> ~/.config/autostart/light-locker.desktop
 
 USER root
 
