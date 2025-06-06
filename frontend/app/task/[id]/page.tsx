@@ -9,6 +9,7 @@ import { ndk, ensureConnected, useNostrUser, createSignedEvent, getTagValue } fr
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
 import { NWCPayment } from "@/components/nwc-payment"
 import { useNWC } from "@/lib/nwc-context"
+import { useToast } from "@/hooks/use-toast"
 
 interface TaskPageProps {
   params: Promise<{
@@ -24,13 +25,59 @@ export default function TaskPage({ params }: TaskPageProps) {
   const [showPayment, setShowPayment] = useState(false)
   const [bidAmount, setBidAmount] = useState(100)
   const [bidSubmitted, setBidSubmitted] = useState(false)
+  const [bidAccepted, setBidAccepted] = useState(false)
   const { user } = useNostrUser()
   const { nwcClient } = useNWC()
+  const { toast } = useToast()
   const { id: taskId } = use(params)
 
   useEffect(() => {
     loadTask()
   }, [taskId])
+
+  useEffect(() => {
+    if (!user || !task) return
+
+    // Subscribe to payment events for this task
+    const checkForAcceptedBid = async () => {
+      await ensureConnected()
+      
+      // Look for events that reference this task and are from the task creator
+      const filter: NDKFilter = {
+        kinds: [9735], // Lightning payment receipts
+        "#e": [taskId],
+        since: Math.floor(Date.now() / 1000) - 300 // Last 5 minutes
+      }
+      
+      const sub = ndk.subscribe(filter, { closeOnEose: false })
+      
+      sub.on("event", (event: NDKEvent) => {
+        console.log("Payment event received:", event)
+        // Check if this payment is for our bid
+        if (event.tagValue("e") === taskId && user) {
+          setBidAccepted(true)
+          setBidSubmitted(false)
+          setShowPayment(false)
+          
+          // Show toast notification
+          toast({
+            title: "🎉 Bid Accepted!",
+            description: "Your bid has been accepted. You can now start working on the task.",
+            duration: 5000,
+          })
+        }
+      })
+      
+      return () => {
+        sub.stop()
+      }
+    }
+    
+    const cleanup = checkForAcceptedBid()
+    return () => {
+      cleanup.then(fn => fn?.())
+    }
+  }, [user, task, taskId])
 
   async function loadTask() {
     try {
@@ -195,7 +242,27 @@ export default function TaskPage({ params }: TaskPageProps) {
 
           <div className="space-y-4">
             {user ? (
-              bidSubmitted ? (
+              bidAccepted ? (
+                <div className="border rounded-lg p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-300">
+                  <div className="flex items-center gap-3 text-green-800 mb-4">
+                    <div className="rounded-full bg-green-100 p-2">
+                      <Check className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">Your Bid Was Accepted! 🎉</h3>
+                      <p className="text-green-700 text-sm">Payment received - you can now start working on this task</p>
+                    </div>
+                  </div>
+                  <Link href={`/work/${taskId}`}>
+                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                      Start Working on Task →
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-green-600 text-center mt-3">
+                    Complete the task to receive your payment of {bidAmount} sats
+                  </p>
+                </div>
+              ) : bidSubmitted ? (
                 <div className="border rounded-lg p-4 bg-green-50 border-green-200">
                   <div className="flex items-center gap-2 text-green-800 mb-2">
                     <Check className="h-5 w-5" />

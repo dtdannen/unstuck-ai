@@ -151,6 +151,40 @@ def execute_drag(start_x_percent, start_y_percent, end_x_percent, end_y_percent)
         return False
 
 
+def execute_move_mouse(x_percent, y_percent):
+    """
+    Move the mouse to the specified percentage coordinates of the screen without clicking.
+
+    Args:
+        x_percent: X coordinate as a percentage of screen width (0-100)
+        y_percent: Y coordinate as a percentage of screen height (0-100)
+    """
+    if not PYAUTOGUI_AVAILABLE:
+        logger.error("PyAutoGUI not available, cannot execute move mouse")
+        return False
+
+    try:
+        # Get screen size
+        screen_width, screen_height = pyautogui.size()
+        logger.info(f"Screen size: {screen_width}x{screen_height}")
+
+        # Calculate pixel coordinates
+        x = int((x_percent / 100) * screen_width)
+        y = int((y_percent / 100) * screen_height)
+        logger.info(
+            f"Moving mouse to coordinates: ({x}, {y}) - {x_percent}%, {y_percent}%"
+        )
+
+        # Move to position
+        pyautogui.moveTo(x, y, duration=0.3)
+        logger.info(f"Moved mouse to position ({x}, {y})")
+
+        return True
+    except Exception as e:
+        logger.error(f"Error executing move mouse: {str(e)}")
+        return False
+
+
 def execute_actions(actions_data):
     """
     Execute a series of mouse actions based on the provided JSON data.
@@ -212,6 +246,14 @@ def execute_actions(actions_data):
                         end.get("y", 0),
                     )
                     results.append({"index": i, "type": "drag", "success": success})
+
+                elif action_type in ["moveMouse", "move"]:
+                    success = execute_move_mouse(
+                        action.get("x", 0), action.get("y", 0)
+                    )
+                    results.append(
+                        {"index": i, "type": "moveMouse", "success": success}
+                    )
 
                 else:
                     logger.warning(f"Unknown action type: {action_type}")
@@ -583,24 +625,38 @@ class NotificationHandler:
                         f"Actions execution result: {json.dumps(execution_result)}"
                     )
 
-                    # Add the execution result to the content
-                    content_json["execution_result"] = execution_result
-
-                    # Update the event content with the execution result
-                    event_content = json.dumps(content_json)
+                    # Create a human-readable summary of what was executed
+                    if execution_result.get("success"):
+                        action_summary = []
+                        for i, action in enumerate(content_json["actions"]):
+                            action_type = action.get("type", "unknown")
+                            if action_type == "click":
+                                action_summary.append(f"Clicked at ({action.get('x', 0):.1f}%, {action.get('y', 0):.1f}%)")
+                            elif action_type == "doubleClick":
+                                action_summary.append(f"Double-clicked at ({action.get('x', 0):.1f}%, {action.get('y', 0):.1f}%)")
+                            elif action_type == "drag":
+                                start = action.get("start", {})
+                                end = action.get("end", {})
+                                action_summary.append(f"Dragged from ({start.get('x', 0):.1f}%, {start.get('y', 0):.1f}%) to ({end.get('x', 0):.1f}%, {end.get('y', 0):.1f}%)")
+                            elif action_type == "moveMouse":
+                                action_summary.append(f"Moved mouse to ({action.get('x', 0):.1f}%, {action.get('y', 0):.1f}%)")
+                        
+                        event_content = f"Successfully executed {len(content_json['actions'])} action(s):\n" + "\n".join(f"- {action}" for action in action_summary)
+                    else:
+                        event_content = f"Failed to execute actions: {execution_result.get('error', 'Unknown error')}"
                 else:
                     logger.info("Kind 6109 event does not contain valid actions format")
+                    event_content = "Received response but no valid actions to execute"
             except Exception as e:
                 logger.error(f"Error executing actions from kind 6109 event: {str(e)}")
-                # If there's an error, add it to the content
-                if content_json:
-                    content_json["execution_error"] = str(e)
-                    event_content = json.dumps(content_json)
-                else:
-                    event_content = event.content()
+                event_content = f"Error executing actions: {str(e)}"
         else:
-            # Use the original content
-            event_content = event.content()
+            # Check if PyAutoGUI is available for kind 6109 events
+            if event_kind == 6109 and not PYAUTOGUI_AVAILABLE:
+                event_content = f"Received instructions but cannot execute (PyAutoGUI not available): {event.content()}"
+            else:
+                # Use the original content for non-action events or text instructions
+                event_content = event.content()
 
         # Store the result
         self.result = {

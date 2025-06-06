@@ -2,12 +2,15 @@
 
 import { useState, useEffect, use } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2, Check, Send } from "lucide-react"
+import { Loader2, Check, Send, Code, Image as ImageIcon } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { ndk, ensureConnected, useNostrUser, createSignedEvent, getTagValue } from "@/lib/nostr"
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
+import { InteractiveImage } from "@/components/interactive-image"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface WorkPageProps {
   params: Promise<{
@@ -22,6 +25,8 @@ export default function WorkPage({ params }: WorkPageProps) {
   const [submitting, setSubmitting] = useState(false)
   const [workComplete, setWorkComplete] = useState(false)
   const [instructions, setInstructions] = useState('')
+  const [actions, setActions] = useState<any[]>([])
+  const [mode, setMode] = useState<'interactive' | 'manual'>('interactive')
   const { user } = useNostrUser()
   const { id: taskId } = use(params)
 
@@ -57,21 +62,58 @@ export default function WorkPage({ params }: WorkPageProps) {
   }
 
   async function handleSubmitWork() {
-    if (!user || !task || !instructions.trim()) return
+    if (!user || !task) return
+    
+    // Check if we have content to submit
+    if (mode === 'manual' && !instructions.trim()) {
+      alert("Please provide instructions")
+      return
+    }
+    
+    if (mode === 'interactive' && actions.length === 0) {
+      alert("Please record at least one action")
+      return
+    }
 
     try {
       setSubmitting(true)
       
-      // Create a result event (kind 6109) with the work instructions
+      // Prepare content based on mode
+      let content = ''
+      if (mode === 'interactive') {
+        // Convert actions to the expected JSON format
+        const formattedActions = actions.map(action => {
+          if (action.type === 'drag' && action.start && action.end) {
+            return {
+              type: action.type,
+              start: { x: action.start.x, y: action.start.y },
+              end: { x: action.end.x, y: action.end.y }
+            }
+          } else {
+            return {
+              type: action.type,
+              x: action.x,
+              y: action.y
+            }
+          }
+        })
+        
+        content = JSON.stringify({ actions: formattedActions }, null, 2)
+      } else {
+        content = instructions.trim()
+      }
+      
+      // Create a result event (kind 6109) with the work
       const tags = [
         ["e", task.id], // Reference to the original task
         ["p", task.author.pubkey], // Tag the task creator
-        ["result", "completed"] // Mark as completed
+        ["result", "completed"], // Mark as completed
+        ["format", mode === 'interactive' ? "json" : "text"] // Indicate format type
       ]
       
       const resultEvent = await createSignedEvent(
         6109,
-        instructions.trim(),
+        content,
         tags
       )
       
@@ -148,74 +190,101 @@ export default function WorkPage({ params }: WorkPageProps) {
         </Link>
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#1e1e1e] mb-2">Complete Your Work</h1>
-          <p className="text-[#757575]">Provide detailed instructions for the task below</p>
+          <h1 className="text-3xl font-bold text-[#1e1e1e] mb-2">{title}</h1>
+          <p className="text-[#757575]">{description}</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Task Details</h2>
+        <div>
             
-            {imageUrl && (
-              <div className="aspect-video relative mb-4 border rounded-lg overflow-hidden">
-                <Image 
-                  src={imageUrl} 
-                  alt="Task screenshot" 
-                  fill 
-                  className="object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.src = "/placeholder.svg?height=400&width=600"
-                  }}
-                />
-              </div>
-            )}
-
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-2">{title}</h3>
-              <p className="text-[#757575] text-sm mb-4">{description}</p>
+            <Tabs value={mode} onValueChange={(v) => setMode(v as 'interactive' | 'manual')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="interactive">
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Interactive Mode
+                </TabsTrigger>
+                <TabsTrigger value="manual">
+                  <Code className="h-4 w-4 mr-2" />
+                  Manual Mode
+                </TabsTrigger>
+              </TabsList>
               
-              <div className="text-xs text-[#757575]">
-                <p><span className="font-medium">Task ID:</span> {taskId.substring(0, 16)}...</p>
-                <p><span className="font-medium">Posted:</span> {
-                  new Date((task.created_at || 0) * 1000).toLocaleDateString()
-                }</p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Your Work</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="instructions" className="block text-sm font-medium mb-2">
-                  Instructions for the AI Agent
-                </label>
-                <Textarea
-                  id="instructions"
-                  placeholder="Provide detailed step-by-step instructions. For example:
-                  
-1. Click on the Safari icon located at coordinates (120, 45)
+              <TabsContent value="interactive" className="space-y-4">
+                <Alert>
+                  <AlertDescription>
+                    Click on the image to record actions. The AI will execute these actions in the order you create them.
+                  </AlertDescription>
+                </Alert>
+                
+                {imageUrl ? (
+                  <InteractiveImage
+                    src={imageUrl}
+                    alt="Task screenshot"
+                    onActionsChange={setActions}
+                  />
+                ) : (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <p className="text-gray-500">No image available for this task</p>
+                  </div>
+                )}
+                
+                {actions.length > 0 && (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <h4 className="text-sm font-medium mb-2">JSON Output Preview:</h4>
+                    <pre className="text-xs overflow-x-auto">
+                      {JSON.stringify({
+                        actions: actions.map(action => {
+                          if (action.type === 'drag' && action.start && action.end) {
+                            return {
+                              type: action.type,
+                              start: { x: action.start.x, y: action.start.y },
+                              end: { x: action.end.x, y: action.end.y }
+                            }
+                          } else {
+                            return {
+                              type: action.type,
+                              x: action.x,
+                              y: action.y
+                            }
+                          }
+                        })
+                      }, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="manual" className="space-y-4">
+                <div>
+                  <label htmlFor="instructions" className="block text-sm font-medium mb-2">
+                    Instructions for the AI Agent
+                  </label>
+                  <Textarea
+                    id="instructions"
+                    placeholder="Provide detailed step-by-step instructions. For example:
+                    
+1. Click on the Safari icon located at coordinates (50, 30)
 2. Wait for the browser to open
 3. The Safari icon is blue and has a compass design
 
-Be specific about coordinates, colors, and visual elements to help the AI understand what to do."
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={12}
-                  className="resize-none"
-                />
-                <p className="text-xs text-[#757575] mt-1">
-                  Be as detailed as possible - include click coordinates, visual descriptions, and step-by-step actions.
-                </p>
-              </div>
+Be specific about coordinates (use percentages 0-100), colors, and visual elements."
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={12}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-[#757575] mt-1">
+                    Use percentage coordinates (0-100) for better accuracy across different screen sizes.
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
 
+            <div className="mt-4">
               <Button
                 onClick={handleSubmitWork}
-                disabled={submitting || !instructions.trim() || !user}
+                disabled={submitting || (!instructions.trim() && mode === 'manual') || (actions.length === 0 && mode === 'interactive') || !user}
                 className="w-full bg-[#2c2c2c] hover:bg-[#1e1e1e]"
               >
                 {submitting ? (
@@ -232,12 +301,11 @@ Be specific about coordinates, colors, and visual elements to help the AI unders
               </Button>
 
               {!user && (
-                <p className="text-[#757575] text-sm text-center">
+                <p className="text-[#757575] text-sm text-center mt-2">
                   Please login with Nostr to submit your work
                 </p>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>
